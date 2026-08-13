@@ -69,10 +69,12 @@ pub fn sha256_hex(input: &str) -> String {
 /// than one place. `terms` is excluded because terms are issued and revoked after
 /// sealing.
 pub fn committed_fields(envelope: &Value) -> Value {
-    const COMMITTED: [&str; 13] = [
+    const COMMITTED: [&str; 16] = [
         "formatVersion", "recordId", "subjectType", "profile", "commitmentAlgorithm",
         "sealedAt", "holder", "attestations", "parents", "profileData",
         "supersedes", "jurisdictionBindings", "extensions",
+        // What every subject has, wherever it comes from.
+        "subject", "identification", "registrations",
     ];
     const ALWAYS_PRESENT: [&str; 2] = ["attestations", "parents"];
 
