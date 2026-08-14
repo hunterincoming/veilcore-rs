@@ -36,15 +36,38 @@ pub fn canonicalise(value: &Value) -> String {
             format!("[{}]", parts.join(","))
         }
         Value::Object(map) => {
-            // Sorted by code point. BTreeMap ordering on Rust Strings is byte order over
-            // UTF-8, which agrees with code point order.
-            let mut keys: Vec<&String> = map.keys().filter(|k| !map[k.as_str()].is_null()).collect();
-            keys.sort();
-            let parts: Vec<String> = keys
+            // Keys are NFC-normalised before sorting, and a post-normalisation collision
+            // makes the record invalid. Both were unstated in the specification until an
+            // external review in August 2026 pointed out that implementations had each
+            // guessed differently.
+            let mut normalised: Vec<(String, &Value)> = Vec::new();
+            for (k, v) in map {
+                if v.is_null() {
+                    panic!("null cannot be committed: omit the field instead (spec 4.4 rule 4)");
+                }
+                let n: String = k.nfc().collect();
+                // Any second key normalising to the same value is a collision, whether or
+                // not the originals differ: emitting both would produce an object with a
+                // duplicate key, which is not valid JSON.
+                if normalised.iter().any(|(existing, _)| *existing == n) {
+                    panic!(
+                        "two keys are identical after Unicode normalisation (\"{}\"); \
+                         the record is invalid (spec 4.4 rule 1)",
+                        n
+                    );
+                }
+                normalised.push((n, v));
+            }
+
+            // Rust's String ordering is byte order over UTF-8, which agrees with code
+            // point order. That is the specified comparison.
+            normalised.sort_by(|a, b| a.0.cmp(&b.0));
+
+            let parts: Vec<String> = normalised
                 .iter()
-                .map(|k| {
+                .map(|(k, v)| {
                     let key = serde_json::to_string(k).expect("key is serialisable");
-                    format!("{}:{}", key, canonicalise(&map[*k]))
+                    format!("{}:{}", key, canonicalise(v))
                 })
                 .collect();
             format!("{{{}}}", parts.join(","))
