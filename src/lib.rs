@@ -155,6 +155,9 @@ pub struct ProofStep {
 /// names. Whether that root was anchored, and when, is a separate lookup - kept separate
 /// so a proof can be checked entirely offline.
 pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> bool {
+    if path.len() > 64 {
+        return false;
+    }
     let mut node = hash_leaf(commitment);
     for step in path {
         node = if step.sibling_is_left {
