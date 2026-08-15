@@ -14,26 +14,73 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
+/// Why a record was refused.
+///
+/// These are refusals, not failures of this library. The specification says such a
+/// record is invalid and an implementation must reject it; rejecting is returning this
+/// to the caller, not aborting the caller's process. A registry embedding this crate
+/// must be able to receive a hostile record and answer "no" rather than stop.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CanonicalError {
+    /// A null appeared in a committed field. Invalid at any nesting depth, per
+    /// specification section 4.4 rule 4. Absent optional fields are omitted; a field
+    /// whose value is null makes the record invalid.
+    NullInCommittedField { key: Option<String> },
+    /// Two keys in the same object are identical after Unicode NFC normalisation, per
+    /// section 4.4 rule 1. Emitting both would produce an object with a duplicate key,
+    /// which is not valid JSON; resolving it means two implementations resolve
+    /// differently.
+    KeyCollisionAfterNormalisation { key: String },
+}
+
+impl std::fmt::Display for CanonicalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CanonicalError::NullInCommittedField { key: Some(k) } => write!(
+                f,
+                "null cannot be committed (field \"{}\"): omit the field instead (spec 4.4 rule 4)",
+                k
+            ),
+            CanonicalError::NullInCommittedField { key: None } => write!(
+                f,
+                "null cannot be committed at any depth: omit the field instead (spec 4.4 rule 4)"
+            ),
+            CanonicalError::KeyCollisionAfterNormalisation { key } => write!(
+                f,
+                "two keys are identical after Unicode normalisation (\"{}\"); the record is invalid (spec 4.4 rule 1)",
+                key
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CanonicalError {}
+
 /// Canonical serialisation, per specification section 4.4.
 ///
 /// Object keys sorted by Unicode code point. Absent optionals omitted rather than
 /// serialised as null. UTF-8, NFC normalised. No insignificant whitespace. Array order
 /// preserved, because parent order is meaningful in some domains and sorting it would
 /// silently discard that meaning.
-pub fn canonicalise(value: &Value) -> String {
+pub fn canonicalise(value: &Value) -> Result<String, CanonicalError> {
     match value {
-        Value::Null => "null".to_string(),
-        Value::Bool(b) => b.to_string(),
-        Value::Number(n) => n.to_string(),
+        // Rule 4 applies at any nesting depth, including inside an array. Catching it
+        // here rather than only where objects are walked is what makes that true.
+        Value::Null => Err(CanonicalError::NullInCommittedField { key: None }),
+        Value::Bool(b) => Ok(b.to_string()),
+        Value::Number(n) => Ok(n.to_string()),
         Value::String(s) => {
             // NFC first: an accented character composed one way and the same character
             // composed another are visually identical and hash differently.
             let normalised: String = s.nfc().collect();
-            serde_json::to_string(&normalised).expect("string is always serialisable")
+            Ok(serde_json::to_string(&normalised).expect("string is always serialisable"))
         }
         Value::Array(items) => {
-            let parts: Vec<String> = items.iter().map(canonicalise).collect();
-            format!("[{}]", parts.join(","))
+            let mut parts: Vec<String> = Vec::with_capacity(items.len());
+            for item in items {
+                parts.push(canonicalise(item)?);
+            }
+            Ok(format!("[{}]", parts.join(",")))
         }
         Value::Object(map) => {
             // Keys are NFC-normalised before sorting, and a post-normalisation collision
@@ -43,18 +90,17 @@ pub fn canonicalise(value: &Value) -> String {
             let mut normalised: Vec<(String, &Value)> = Vec::new();
             for (k, v) in map {
                 if v.is_null() {
-                    panic!("null cannot be committed: omit the field instead (spec 4.4 rule 4)");
+                    // Named here because a caller fixing the record wants to know which
+                    // field. Nulls reached through an array surface without a key.
+                    return Err(CanonicalError::NullInCommittedField {
+                        key: Some(k.clone()),
+                    });
                 }
                 let n: String = k.nfc().collect();
                 // Any second key normalising to the same value is a collision, whether or
-                // not the originals differ: emitting both would produce an object with a
-                // duplicate key, which is not valid JSON.
+                // not the originals differ.
                 if normalised.iter().any(|(existing, _)| *existing == n) {
-                    panic!(
-                        "two keys are identical after Unicode normalisation (\"{}\"); \
-                         the record is invalid (spec 4.4 rule 1)",
-                        n
-                    );
+                    return Err(CanonicalError::KeyCollisionAfterNormalisation { key: n });
                 }
                 normalised.push((n, v));
             }
@@ -63,14 +109,12 @@ pub fn canonicalise(value: &Value) -> String {
             // point order. That is the specified comparison.
             normalised.sort_by(|a, b| a.0.cmp(&b.0));
 
-            let parts: Vec<String> = normalised
-                .iter()
-                .map(|(k, v)| {
-                    let key = serde_json::to_string(k).expect("key is serialisable");
-                    format!("{}:{}", key, canonicalise(v))
-                })
-                .collect();
-            format!("{{{}}}", parts.join(","))
+            let mut parts: Vec<String> = Vec::with_capacity(normalised.len());
+            for (k, v) in &normalised {
+                let key = serde_json::to_string(k).expect("key is serialisable");
+                parts.push(format!("{}:{}", key, canonicalise(v)?));
+            }
+            Ok(format!("{{{}}}", parts.join(",")))
         }
     }
 }
@@ -117,17 +161,26 @@ pub fn committed_fields(envelope: &Value) -> Value {
 /// Compute a record commitment, per section 4.1.
 ///
 /// Plain SHA-256 over the canonical serialisation. No ledger, no specialised runtime.
-pub fn compute_commitment(envelope: &Value) -> String {
-    sha256_hex(&canonicalise(&committed_fields(envelope)))
+///
+/// Returns the reason rather than a bare failure: a party sealing a record needs to know
+/// which field was refused, not only that something was.
+pub fn compute_commitment(envelope: &Value) -> Result<String, CanonicalError> {
+    Ok(sha256_hex(&canonicalise(&committed_fields(envelope))?))
 }
 
 /// Verify a record commitment.
 ///
 /// This establishes that the record is unaltered since sealing. It does not establish
 /// that the record is true - see specification section 9.3.
+///
+/// An invalid record is not a verified record, so a refusal reads as `false` here. A
+/// caller that needs the reason should call `compute_commitment` directly.
 pub fn verify_commitment(envelope: &Value) -> bool {
     match envelope.get("commitment").and_then(|c| c.as_str()) {
-        Some(claimed) => compute_commitment(envelope) == claimed,
+        Some(claimed) => match compute_commitment(envelope) {
+            Ok(computed) => computed == claimed,
+            Err(_) => false,
+        },
         None => false,
     }
 }
@@ -149,13 +202,19 @@ pub struct ProofStep {
     pub sibling_is_left: bool,
 }
 
+/// The deepest path a verifier will fold, per section 5.1.
+///
+/// 64 levels covers any batch anyone will ever build. An unbounded path is an unbounded
+/// amount of work handed to a verifier by whoever supplied the proof.
+pub const MAX_PROOF_DEPTH: usize = 64;
+
 /// Fold a path from a commitment to a root.
 ///
 /// Requires no network access: this proves membership in the batch whose root the proof
 /// names. Whether that root was anchored, and when, is a separate lookup - kept separate
 /// so a proof can be checked entirely offline.
 pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> bool {
-    if path.len() > 64 {
+    if path.len() > MAX_PROOF_DEPTH {
         return false;
     }
     let mut node = hash_leaf(commitment);
@@ -168,13 +227,103 @@ pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> boo
     }
     node == root
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    // ---- rejections: the record is invalid and must be refused, not crashed on ----
+
+    #[test]
+    fn a_null_at_the_top_level_is_refused() {
+        let v = json!({ "a": null });
+        assert_eq!(
+            canonicalise(&v),
+            Err(CanonicalError::NullInCommittedField {
+                key: Some("a".to_string())
+            })
+        );
+    }
+
+    #[test]
+    fn a_nested_null_is_refused() {
+        let v = json!({ "a": { "b": { "c": null } } });
+        assert!(matches!(
+            canonicalise(&v),
+            Err(CanonicalError::NullInCommittedField { .. })
+        ));
+    }
+
+    #[test]
+    fn a_null_inside_an_array_is_refused() {
+        // Rule 4 says any nesting depth. An array element is a depth like any other, and
+        // this case was silently accepted before August 2026.
+        let v = json!({ "a": [1, null, 3] });
+        assert!(matches!(
+            canonicalise(&v),
+            Err(CanonicalError::NullInCommittedField { .. })
+        ));
+    }
+
+    #[test]
+    fn keys_identical_after_normalisation_are_refused() {
+        // Composed and decomposed forms of the same character.
+        let mut map = serde_json::Map::new();
+        map.insert("\u{00e9}".to_string(), json!(1));
+        map.insert("e\u{0301}".to_string(), json!(2));
+        let v = Value::Object(map);
+        assert!(matches!(
+            canonicalise(&v),
+            Err(CanonicalError::KeyCollisionAfterNormalisation { .. })
+        ));
+    }
+
+    #[test]
+    fn a_refusal_does_not_abort_the_caller() {
+        // The point of the change: a caller can receive a hostile record, be told no, and
+        // carry on serving.
+        let hostile = json!({ "a": null });
+        let mut served = 0;
+        for _ in 0..3 {
+            if canonicalise(&hostile).is_err() {
+                served += 1;
+            }
+        }
+        assert_eq!(served, 3);
+    }
+
+    // ---- canonicalisation still behaves ----
+
+    #[test]
+    fn keys_are_sorted_by_code_point() {
+        let v = json!({ "b": 1, "a": 2, "C": 3 });
+        assert_eq!(canonicalise(&v).unwrap(), "{\"C\":3,\"a\":2,\"b\":1}");
+    }
+
+    #[test]
+    fn array_order_is_preserved() {
+        let v = json!(["b", "a", "c"]);
+        assert_eq!(canonicalise(&v).unwrap(), "[\"b\",\"a\",\"c\"]");
+    }
+
+    #[test]
+    fn nested_objects_are_sorted_at_every_level() {
+        let v = json!({ "z": { "b": 1, "a": 2 }, "a": 3 });
+        assert_eq!(canonicalise(&v).unwrap(), "{\"a\":3,\"z\":{\"a\":2,\"b\":1}}");
+    }
+
+    #[test]
+    fn an_invalid_record_does_not_verify() {
+        let v = json!({ "commitment": "0".repeat(64), "holder": null });
+        assert!(!verify_commitment(&v));
+    }
+
+    // ---- inclusion proofs ----
 
     #[test]
     fn a_path_deeper_than_the_maximum_is_refused() {
-        let path: Vec<ProofStep> = (0..65)
+        let path: Vec<ProofStep> = (0..MAX_PROOF_DEPTH + 1)
             .map(|_| ProofStep {
                 sibling: "a".repeat(64),
                 sibling_is_left: true,
