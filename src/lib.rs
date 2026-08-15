@@ -168,3 +168,30 @@ pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> boo
     }
     node == root
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_path_deeper_than_the_maximum_is_refused() {
+        let path: Vec<ProofStep> = (0..65)
+            .map(|_| ProofStep {
+                sibling: "a".repeat(64),
+                sibling_is_left: true,
+            })
+            .collect();
+        assert!(!verify_inclusion(&"b".repeat(64), &path, &"c".repeat(64)));
+    }
+
+    #[test]
+    fn a_single_step_path_folds() {
+        let commitment = "b".repeat(64);
+        let sibling = "a".repeat(64);
+        let root = hash_node(&hash_leaf(&commitment), &sibling);
+        let path = vec![ProofStep {
+            sibling,
+            sibling_is_left: false,
+        }];
+        assert!(verify_inclusion(&commitment, &path, &root));
+    }
+}
