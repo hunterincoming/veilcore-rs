@@ -11,7 +11,7 @@
 
 use std::io::Read;
 use serde_json::{json, Value};
-use veilcore_records::{canonicalise, compute_commitment};
+use veilcore_records::{canonicalise, compute_commitment, fold_path, ProofStep, MAX_PROOF_DEPTH};
 
 fn main() {
     let mut input = String::new();
@@ -27,6 +27,29 @@ fn main() {
             Ok(s) => json!({ "result": s }),
             Err(e) => json!({ "error": e.to_string(), "rejected": true }),
         },
+        // Fold an inclusion proof and return the root, rather than a yes or no. A
+        // disagreement between two implementations is only diagnosable if each reports
+        // the root it computed.
+        Some("fold") => {
+            let commitment = job["input"]["commitment"].as_str().unwrap_or("");
+            let steps = job["input"]["path"].as_array().cloned().unwrap_or_default();
+
+            if steps.len() > MAX_PROOF_DEPTH {
+                json!({
+                    "error": "proof path exceeds maximum depth (spec 5.4)",
+                    "rejected": true
+                })
+            } else {
+                let path: Vec<ProofStep> = steps
+                    .iter()
+                    .map(|s| ProofStep {
+                        sibling: s["sibling"].as_str().unwrap_or("").to_string(),
+                        sibling_is_left: s["siblingIsLeft"].as_bool().unwrap_or(false),
+                    })
+                    .collect();
+                json!({ "result": fold_path(commitment, &path) })
+            }
+        }
         other => json!({ "error": format!("unknown op {:?}", other) }),
     };
 

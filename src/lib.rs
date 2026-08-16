@@ -188,35 +188,46 @@ pub fn verify_commitment(envelope: &Value) -> bool {
 // ---- inclusion proofs, per section 5 ----
 
 /// Leaf and interior nodes are domain-separated so a leaf can never be presented as an
-/// interior node.
-fn hash_leaf(commitment: &str) -> String {
+/// interior node, per section 5.2.
+///
+/// The prefix is the two ASCII characters `0` `0`, not the byte 0x00, and the input is
+/// the hexadecimal string rather than decoded bytes. Both were unstated in the
+/// specification until August 2026; either reading produces a different root everywhere.
+pub fn hash_leaf(commitment: &str) -> String {
     sha256_hex(&format!("00{}", commitment))
 }
 
-fn hash_node(left: &str, right: &str) -> String {
+/// An interior node. ASCII prefix `0` `1`, then the two children as hex strings.
+pub fn hash_node(left: &str, right: &str) -> String {
     sha256_hex(&format!("01{}{}", left, right))
 }
 
+/// One step of an inclusion path.
+///
+/// `sibling_is_left` describes the SIBLING, not the node being folded. The inverse
+/// reading is the most likely divergence in section 5, and roughly half of any given
+/// proof still verifies under it, which makes the error hard to see.
 pub struct ProofStep {
     pub sibling: String,
     pub sibling_is_left: bool,
 }
 
-/// The deepest path a verifier will fold, per section 5.1.
+/// The deepest path a verifier will fold, per section 5.4.
 ///
 /// 64 levels covers any batch anyone will ever build. An unbounded path is an unbounded
 /// amount of work handed to a verifier by whoever supplied the proof.
 pub const MAX_PROOF_DEPTH: usize = 64;
 
-/// Fold a path from a commitment to a root.
+/// Fold a path from a commitment to a root, and return the root.
 ///
-/// Requires no network access: this proves membership in the batch whose root the proof
-/// names. Whether that root was anchored, and when, is a separate lookup - kept separate
-/// so a proof can be checked entirely offline.
-pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> bool {
-    if path.len() > MAX_PROOF_DEPTH {
-        return false;
-    }
+/// `verify_inclusion` answers yes or no, which is what a verifier wants. A conformance
+/// runner wants the value: a disagreement between two implementations is only
+/// diagnosable if each reports the root it computed rather than only that they differed.
+/// Both go through here, so there is one fold rather than two that can drift apart.
+///
+/// The depth cap is enforced by the caller, because a caller that wants the value of a
+/// deliberately oversized path - a test, for instance - should be able to ask for it.
+pub fn fold_path(commitment: &str, path: &[ProofStep]) -> String {
     let mut node = hash_leaf(commitment);
     for step in path {
         node = if step.sibling_is_left {
@@ -225,7 +236,19 @@ pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> boo
             hash_node(&node, &step.sibling)
         };
     }
-    node == root
+    node
+}
+
+/// Verify that an inclusion path folds to the root it names.
+///
+/// Requires no network access: this proves membership in the batch whose root the proof
+/// names. Whether that root was anchored, and when, is a separate lookup - kept separate
+/// so a proof can be checked entirely offline.
+pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> bool {
+    if path.len() > MAX_PROOF_DEPTH {
+        return false;
+    }
+    fold_path(commitment, path) == root
 }
 
 #[cfg(test)]
@@ -342,5 +365,47 @@ mod tests {
             sibling_is_left: false,
         }];
         assert!(verify_inclusion(&commitment, &path, &root));
+    }
+
+    #[test]
+    fn an_empty_path_folds_to_the_leaf_hash() {
+        // A single-leaf batch has a root equal to the leaf hash and an empty path. It is
+        // the first case anyone implements and the specification left it undefined until
+        // August 2026.
+        let commitment = "0".repeat(64);
+        assert_eq!(fold_path(&commitment, &[]), hash_leaf(&commitment));
+    }
+
+    #[test]
+    fn the_direction_flag_describes_the_sibling() {
+        // If this were read the other way round, the two roots below would swap. Half of
+        // any given proof still verifies under the inverse reading, which is what makes
+        // that error hard to see without a test that names it.
+        let commitment = "b".repeat(64);
+        let sibling = "a".repeat(64);
+        let leaf = hash_leaf(&commitment);
+
+        let sibling_left = fold_path(
+            &commitment,
+            &[ProofStep { sibling: sibling.clone(), sibling_is_left: true }],
+        );
+        let sibling_right = fold_path(
+            &commitment,
+            &[ProofStep { sibling: sibling.clone(), sibling_is_left: false }],
+        );
+
+        assert_eq!(sibling_left, hash_node(&sibling, &leaf));
+        assert_eq!(sibling_right, hash_node(&leaf, &sibling));
+        assert_ne!(sibling_left, sibling_right);
+    }
+
+    #[test]
+    fn leaves_and_interior_nodes_are_domain_separated() {
+        // Without the differing prefixes, a leaf preimage and an interior preimage could
+        // collide, and a leaf could be presented as an interior node.
+        let a = "a".repeat(64);
+        let b = "b".repeat(64);
+        assert_ne!(hash_leaf(&a), sha256_hex(&a));
+        assert_ne!(hash_node(&a, &b), sha256_hex(&format!("{}{}", a, b)));
     }
 }
