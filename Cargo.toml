@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "An independent implementation of the VeilCore record format"
+repository = "https://github.com/hunterincoming/veilcore-rs"
+homepage = "https://veilcore.org"
+keywords = ["provenance", "records", "commitment", "merkle", "standards"]
 
 [dependencies]
 sha2 = "0.10"
