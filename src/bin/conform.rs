@@ -11,7 +11,7 @@
 
 use std::io::Read;
 use serde_json::{json, Value};
-use veilcore_records::{canonicalise, compute_commitment, fold_path, ProofStep, MAX_PROOF_DEPTH};
+use veilcore_records::{attestation_payload, canonicalise, compute_commitment, fold_path, ProofStep, MAX_PROOF_DEPTH};
 
 fn main() {
     let mut input = String::new();
@@ -24,6 +24,10 @@ fn main() {
             Err(e) => json!({ "error": e.to_string(), "rejected": true }),
         },
         Some("commit") => match compute_commitment(&job["input"]) {
+            Ok(s) => json!({ "result": s }),
+            Err(e) => json!({ "error": e.to_string(), "rejected": true }),
+        },
+        Some("attestationPayload") => match attestation_payload(&job["input"]) {
             Ok(s) => json!({ "result": s }),
             Err(e) => json!({ "error": e.to_string(), "rejected": true }),
         },

@@ -168,6 +168,48 @@ pub fn compute_commitment(envelope: &Value) -> Result<String, CanonicalError> {
     Ok(sha256_hex(&canonicalise(&committed_fields(envelope))?))
 }
 
+/// The bytes an attester signs, per section 7.
+///
+/// The attester's identity goes in whole rather than by its key alone. An
+/// implementation that signs `publicKey` and leaves `displayName`, `role` or
+/// `accreditation` outside the signature produces attestations that anyone holding
+/// one can rewrite: a small laboratory's genuine report becomes an accredited one,
+/// the signature unchanged and still verifying, and section 7.2 reports the tier it
+/// reads from those very fields. This was the shape of a real defect in the
+/// TypeScript implementation, found in September 2026 and covered by vectors since.
+///
+/// They remain claims. Signing them establishes that the attester made the claim,
+/// not that an accreditor ever issued it.
+pub fn attestation_payload(attestation: &Value) -> Result<String, CanonicalError> {
+    const ATTESTER_FIELDS: [&str; 3] = ["displayName", "role", "accreditation"];
+    const TOP_FIELDS: [&str; 6] = [
+        "attestationId", "documentHash", "hashAlgorithm",
+        "issuedAt", "subjectCommitment", "type",
+    ];
+
+    let mut attester = serde_json::Map::new();
+    if let Some(key) = attestation.pointer("/attester/publicKey") {
+        attester.insert("publicKey".to_string(), key.clone());
+    }
+    for field in ATTESTER_FIELDS {
+        match attestation.pointer(&format!("/attester/{field}")) {
+            Some(v) if !v.is_null() => { attester.insert(field.to_string(), v.clone()); }
+            _ => {}
+        }
+    }
+
+    let mut out = serde_json::Map::new();
+    out.insert("attester".to_string(), Value::Object(attester));
+    for field in TOP_FIELDS {
+        match attestation.get(field) {
+            Some(v) if !v.is_null() => { out.insert(field.to_string(), v.clone()); }
+            _ => {}
+        }
+    }
+
+    canonicalise(&Value::Object(out))
+}
+
 /// Verify a record commitment.
 ///
 /// This establishes that the record is unaltered since sealing. It does not establish
