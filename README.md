@@ -1,12 +1,12 @@
 # veilcore-records (Rust)
 
-An independent implementation of the VeilCore record format:
+A Rust implementation of the VeilCore record format:
 https://github.com/hunterincoming/veilcore-sdk/blob/main/SPEC.md
 
-Written from the specification rather than translated from the TypeScript or Python
-implementations. It passes the same published conformance vectors, which is the evidence
-that the specification is unambiguous enough for a third party to implement without
-consulting its authors.
+It passes the same published conformance vectors as the TypeScript and Python
+implementations. All three have the same author, so this shows the vectors hold across
+languages. It does not show that a third party could implement the format from the
+specification alone; that still needs an implementation by someone unrelated.
 
 Dependencies: SHA-256, a JSON parser, Unicode normalisation. Nothing else. A format that
 needs more than that to compute a commitment is a format that cannot be implemented by
