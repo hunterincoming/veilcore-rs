@@ -42,6 +42,14 @@ pub enum CanonicalError {
     /// is not exactly 64 lowercase hexadecimal characters, per section 4.5. Names the
     /// field at fault.
     InvalidFieldBinding { field: &'static str },
+    /// A `sha256/canonical-json/v1` record carrying `fieldSchema` or `fieldSetRoot`. The
+    /// bindings mean nothing under that algorithm, so committing them would publish a
+    /// root nothing checks.
+    FieldBindingWithoutFieldsAlgorithm,
+    /// A commitment algorithm other than exactly `sha256/canonical-json/v1` or
+    /// `sha256/fields/v1`, including a missing or non-string one. A name that only looks
+    /// like a supported one, with a trailing space say, is refused rather than guessed at.
+    UnsupportedCommitmentAlgorithm { algorithm: String },
 }
 
 impl std::fmt::Display for CanonicalError {
@@ -71,6 +79,13 @@ impl std::fmt::Display for CanonicalError {
                 "sha256/fields/v1 needs {} as 64 lowercase hex characters (spec 4.5)",
                 field
             ),
+            CanonicalError::FieldBindingWithoutFieldsAlgorithm => write!(
+                f,
+                "fieldSchema and fieldSetRoot belong only to sha256/fields/v1 records (spec 4.5)"
+            ),
+            CanonicalError::UnsupportedCommitmentAlgorithm { algorithm } => {
+                write!(f, "unsupported commitment algorithm: {}", algorithm)
+            }
         }
     }
 }
@@ -184,15 +199,16 @@ pub fn sha256_hex(input: &str) -> String {
 /// than one place. `terms` is excluded because terms are issued and revoked after
 /// sealing.
 pub fn committed_fields(envelope: &Value) -> Value {
-    const COMMITTED: [&str; 17] = [
+    const COMMITTED: [&str; 18] = [
         "formatVersion", "recordId", "subjectType", "profile", "commitmentAlgorithm",
         "sealedAt", "holder", "attestations", "parents", "profileData",
         "supersedes", "jurisdictionBindings", "extensions",
         // What every subject has, wherever it comes from.
         "subject", "identification", "registrations",
-        // The schema a field set is sealed under (section 4.5). The field set root is
-        // not here: it is bound by the commitment itself, not by the JSON digest.
-        "fieldSchema",
+        // The field set binding (section 4.5). The root is also bound by the commitment
+        // itself; having it in the JSON as well means anyone shown the JSON sees which
+        // field set it belongs to, and one JSON cannot be paired with two field sets.
+        "fieldSchema", "fieldSetRoot",
     ];
     const ALWAYS_PRESENT: [&str; 2] = ["attestations", "parents"];
 
@@ -216,15 +232,37 @@ pub fn committed_fields(envelope: &Value) -> Value {
 /// Returns the reason rather than a bare failure: a party sealing a record needs to know
 /// which field was refused, not only that something was.
 ///
-/// For `sha256/fields/v1` (section 4.5) the commitment is
-/// `H("veilcore:v1:frecord", fieldSetRoot, that same JSON digest)`, so it also binds a
-/// field set whose slots can be proved one at a time. Every other algorithm name gets
-/// the JSON digest; whether the name is a supported one is the verifier's question.
+/// Two algorithms, matched exactly; any other name is refused:
+///
+/// - `sha256/canonical-json/v1`: SHA-256 of the canonical JSON of the committed fields.
+///   A record carrying `fieldSchema` or `fieldSetRoot` is refused.
+/// - `sha256/fields/v1` (section 4.5): `H("veilcore:v1:frecord", fieldSetRoot, that same
+///   JSON digest)`, so the commitment also binds a field set whose slots can be proved
+///   one at a time. Both bindings must be 64 lowercase hex characters.
 pub fn compute_commitment(envelope: &Value) -> Result<String, CanonicalError> {
-    let json_digest: [u8; 32] = Sha256::digest(canonicalise(&committed_fields(envelope))?.as_bytes()).into();
-    if envelope.get("commitmentAlgorithm").and_then(Value::as_str) != Some(FIELDS_ALGORITHM) {
-        return Ok(hex(&json_digest));
+    let json_digest = || -> Result<[u8; 32], CanonicalError> {
+        Ok(Sha256::digest(canonicalise(&committed_fields(envelope))?.as_bytes()).into())
+    };
+    match envelope.get("commitmentAlgorithm") {
+        Some(Value::String(a)) if a == "sha256/canonical-json/v1" => {
+            // Present at all, null included, as the reference reads it.
+            if envelope.get("fieldSchema").is_some() || envelope.get("fieldSetRoot").is_some() {
+                return Err(CanonicalError::FieldBindingWithoutFieldsAlgorithm);
+            }
+            return Ok(hex(&json_digest()?));
+        }
+        Some(Value::String(a)) if a == FIELDS_ALGORITHM => {}
+        other => {
+            return Err(CanonicalError::UnsupportedCommitmentAlgorithm {
+                algorithm: match other {
+                    Some(Value::String(a)) => a.clone(),
+                    Some(v) => v.to_string(),
+                    None => "undefined".to_string(),
+                },
+            })
+        }
     }
+    let json_digest = json_digest()?;
     let hex32 = |field: &'static str| {
         envelope
             .get(field)
@@ -464,8 +502,8 @@ mod tests {
             "sealedAt": "2026-01-01T00:00:00Z", "holder": { "id": "vc_hld_conformance" },
             "parents": [], "attestations": [],
             "profileData": { "cultivarName": "Reference Cultivar", "nonce": "0".repeat(64) },
-            "fieldSchema": "9dd68c656b770881cad6e2be6dfc04a9b495fb90d83b78a8b295a425a7690861",
-            "fieldSetRoot": "bcc7a07c54b73978c378b1056f52c7fb34fa7a92f85470d7f8c33f15f8758dec"
+            "fieldSchema": "53304a427e34f78ebbb162464ca1a2fe67a51ed70b28ac2f1a61bee19c37d754",
+            "fieldSetRoot": "c2d318520d0c3273ac0dae976dbeeece5b81adf841bf09b894cb42feec141b17"
         })
     }
 
@@ -474,7 +512,7 @@ mod tests {
         // conformance/vectors.json, "a sha256/fields/v1 record binds its field set".
         assert_eq!(
             compute_commitment(&fields_record()).unwrap(),
-            "afb6bcdecc4c3cb7a17389d2fc0eea664ff43277209a359d048a355f4f599a9f"
+            "929b42f5025a494a04fd1c8fb1ec20f2bdbe9675f0059fe6ebfd05efdfdaa1c5"
         );
     }
 
@@ -507,12 +545,42 @@ mod tests {
     }
 
     #[test]
-    fn the_field_schema_is_committed_under_either_algorithm() {
-        let mut a = fields_record();
-        a["commitmentAlgorithm"] = json!("sha256/canonical-json/v1");
-        let mut b = a.clone();
-        b["fieldSchema"] = json!("0".repeat(64));
-        assert_ne!(compute_commitment(&a).unwrap(), compute_commitment(&b).unwrap());
+    fn the_field_set_root_is_in_the_committed_json() {
+        assert!(committed_fields(&fields_record()).get("fieldSetRoot").is_some());
+        assert!(committed_fields(&fields_record()).get("fieldSchema").is_some());
+    }
+
+    #[test]
+    fn a_canonical_json_record_carrying_a_field_binding_is_refused() {
+        for field in ["fieldSchema", "fieldSetRoot"] {
+            let mut r = fields_record();
+            r["commitmentAlgorithm"] = json!("sha256/canonical-json/v1");
+            let other = if field == "fieldSchema" { "fieldSetRoot" } else { "fieldSchema" };
+            r.as_object_mut().unwrap().remove(other);
+            assert_eq!(compute_commitment(&r), Err(CanonicalError::FieldBindingWithoutFieldsAlgorithm));
+            r[field] = Value::Null; // present, even as null
+            assert_eq!(compute_commitment(&r), Err(CanonicalError::FieldBindingWithoutFieldsAlgorithm));
+            r.as_object_mut().unwrap().remove(field);
+            assert!(compute_commitment(&r).is_ok());
+        }
+    }
+
+    #[test]
+    fn only_the_two_algorithm_names_are_accepted() {
+        for name in [json!("sha256/fields/v1 "), json!("sha256/fields/v2"), json!("SHA256/fields/v1"), json!(1)] {
+            let mut r = fields_record();
+            r["commitmentAlgorithm"] = name;
+            assert!(matches!(
+                compute_commitment(&r),
+                Err(CanonicalError::UnsupportedCommitmentAlgorithm { .. })
+            ));
+        }
+        let mut missing = fields_record();
+        missing.as_object_mut().unwrap().remove("commitmentAlgorithm");
+        assert!(matches!(
+            compute_commitment(&missing),
+            Err(CanonicalError::UnsupportedCommitmentAlgorithm { .. })
+        ));
     }
 
     // ---- inclusion proofs ----

@@ -16,10 +16,11 @@ whoever needs to implement it.
 
     cargo test
 
-Twenty-eight of them, and they cover what the format requires an implementation to REFUSE
+Thirty-four of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
-schema or slot value, a `sha256/fields/v1` record without a lowercase field binding. An implementation
+schema or slot value, comparable text not in its declared format, a commitment algorithm
+name that is not exactly one of the two, a field binding on the wrong algorithm. An implementation
 that only agrees on valid input has not been shown to agree.
 
 ## Conformance
@@ -29,7 +30,7 @@ that only agrees on valid input has not been shown to agree.
     git clone https://github.com/hunterincoming/veilcore-sdk
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform"
 
-Seventy-seven vectors, including field sets (`sha256/fields/v1`, spec 4.5). The runner speaks over stdin and stdout, so it drives any
+Eighty-seven vectors, including field sets (`sha256/fields/v1`, spec 4.5). The runner speaks over stdin and stdout, so it drives any
 implementation in any language, and it fails rather than skips when one cannot answer an
 operation — a check that reports nothing is worse than a check that is missing.
 
@@ -37,10 +38,20 @@ operation — a check that reports nothing is worse than a check that is missing
 
 **0.3.0** — field sets, commitment algorithm `sha256/fields/v1` (spec 4.5): the
 `fields` module, `fieldSchema` in the committed fields, and the `fieldSet` conformance
-op. Breaking: `CanonicalError` has a new variant, `InvalidFieldBinding`, returned by
-`compute_commitment` for a `sha256/fields/v1` record whose `fieldSetRoot` or
-`fieldSchema` is missing or not 64 lowercase hex characters. A caller matching
-`CanonicalError` exhaustively needs an arm for it. The conformance binary now answers
+op. Schemas are checked in full and their id includes a numeric-slot mask; comparable
+text slots declare a format (`allele-pair`, `allele`, `code`) and only its canonical
+form is accepted. Breaking:
+
+- `CanonicalError` has three new variants, returned by `compute_commitment`:
+  `InvalidFieldBinding` (a `sha256/fields/v1` record whose `fieldSetRoot` or
+  `fieldSchema` is missing or not 64 lowercase hex characters),
+  `FieldBindingWithoutFieldsAlgorithm` (a `sha256/canonical-json/v1` record carrying
+  either), and `UnsupportedCommitmentAlgorithm`. A caller matching `CanonicalError`
+  exhaustively needs arms for them.
+- `compute_commitment` now refuses any algorithm name other than exactly
+  `sha256/canonical-json/v1` or `sha256/fields/v1`, including a missing one. It used
+  to return the JSON digest for any name.
+- `fieldSchema` and `fieldSetRoot` are committed fields. The conformance binary now answers
 unreadable input with `{"error":...}` instead of panicking.
 
 Apache-2.0

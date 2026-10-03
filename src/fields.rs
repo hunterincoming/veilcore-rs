@@ -168,56 +168,195 @@ pub fn schema_document_digest(schema: &Value) -> Result<Bytes32, FieldError> {
     Ok(sha256(canonicalise(schema)?.as_bytes()))
 }
 
-/// Which slots count towards distinctness. Also validates the slot list: each slot
-/// 0 to 15 and described once, type `uint` or `text`, `comparable` a boolean if present.
-pub fn comparable_mask(schema: &Value) -> Result<[bool; FIELD_SLOTS], FieldError> {
-    let slots = schema
-        .get("slots")
+/// The kind of value a slot holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlotType {
+    Uint,
+    Text,
+}
+
+/// The canonical form a text slot's values must be written in.
+///
+/// Distinctness compares bytes, so one genotype written two ways ("180/184" and
+/// "184/180") would count as a difference. A comparable text slot therefore declares a
+/// format, and only its canonical form is accepted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FieldFormat {
+    /// Two allele sizes, decimal, at most 9 digits, no leading zeros, smaller first: `180/184`.
+    AllelePair,
+    /// One allele size: `233`.
+    Allele,
+    /// Upper-case letters, digits, `.`, `_` or `-`, starting with a letter or digit, at
+    /// most 64 characters.
+    Code,
+}
+
+impl FieldFormat {
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "allele-pair" => Some(FieldFormat::AllelePair),
+            "allele" => Some(FieldFormat::Allele),
+            "code" => Some(FieldFormat::Code),
+            _ => None,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            FieldFormat::AllelePair => "allele-pair",
+            FieldFormat::Allele => "allele",
+            FieldFormat::Code => "code",
+        }
+    }
+}
+
+/// An allele size: `0` or a decimal of at most 9 digits with no leading zero.
+fn allele(s: &str) -> Option<u32> {
+    let ok = !s.is_empty()
+        && s.len() <= 9
+        && s.bytes().all(|c| c.is_ascii_digit())
+        && (s == "0" || !s.starts_with('0'));
+    if ok { s.parse().ok() } else { None }
+}
+
+/// Refuse text that is not in the canonical form of `format`.
+pub fn check_format(format: FieldFormat, text: &str) -> Result<(), FieldError> {
+    let not_in_form = || FieldError(format!("not in {} form: {:?}", format.name(), text));
+    match format {
+        FieldFormat::Allele => allele(text).map(|_| ()).ok_or_else(not_in_form),
+        FieldFormat::AllelePair => {
+            let (a, b) = text.split_once('/').ok_or_else(not_in_form)?;
+            let (a, b) = (allele(a).ok_or_else(not_in_form)?, allele(b).ok_or_else(not_in_form)?);
+            if a > b {
+                return Err(FieldError(format!("an allele pair is written smaller first: {:?}", text)));
+            }
+            Ok(())
+        }
+        FieldFormat::Code => {
+            let b = text.as_bytes();
+            let ok = (1..=64).contains(&b.len())
+                && (b[0].is_ascii_uppercase() || b[0].is_ascii_digit())
+                && b.iter().all(|&c| c.is_ascii_uppercase() || c.is_ascii_digit() || matches!(c, b'.' | b'_' | b'-'));
+            if ok { Ok(()) } else { Err(not_in_form()) }
+        }
+    }
+}
+
+/// What a schema says about one slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SlotDecl {
+    pub slot_type: SlotType,
+    pub format: Option<FieldFormat>,
+    pub comparable: bool,
+}
+
+/// A checked schema: what it declares for each slot (None where it is silent), and the
+/// two masks hashed into its id.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SchemaMasks {
+    pub slots: [Option<SlotDecl>; FIELD_SLOTS],
+    /// Slots that count towards distinctness.
+    pub comparable: [bool; FIELD_SLOTS],
+    /// Slots that hold numbers, so the claims contract can refuse a range claim on any other.
+    pub numeric: [bool; FIELD_SLOTS],
+}
+
+/// Check a schema document and return what it declares.
+///
+/// The schema is an object with a non-empty string `id`, a string `title` and a `slots`
+/// list. Each slot entry is an object: `slot` 0 to 15 and described once, `type` `uint` or
+/// `text`, `path` a non-empty string, `unit` a string if present, `scale` a positive
+/// integer if present, `comparable` a boolean if present, `format` only on a text slot
+/// and one of `allele-pair`, `allele`, `code`. A comparable text slot must declare a format.
+pub fn schema_masks(schema: &Value) -> Result<SchemaMasks, FieldError> {
+    let entries = schema
+        .as_object()
+        .and_then(|o| o.get("slots"))
         .and_then(Value::as_array)
         .ok_or_else(|| FieldError::new("a schema lists its slots"))?;
-    let mut mask = [false; FIELD_SLOTS];
-    let mut seen = [false; FIELD_SLOTS];
-    for s in slots {
+    if !matches!(schema.get("id"), Some(Value::String(id)) if !id.is_empty()) {
+        return Err(FieldError::new("a schema has an id"));
+    }
+    if !matches!(schema.get("title"), Some(Value::String(_))) {
+        return Err(FieldError::new("a schema has a title"));
+    }
+    let mut out = SchemaMasks { slots: [None; FIELD_SLOTS], comparable: [false; FIELD_SLOTS], numeric: [false; FIELD_SLOTS] };
+    for s in entries {
+        if !s.is_object() {
+            return Err(FieldError::new("a slot entry is an object"));
+        }
         let raw = s.get("slot").unwrap_or(&Value::Null);
         let slot = match json_integer(raw) {
             Some(i) if (0..FIELD_SLOTS as i128).contains(&i) => i as usize,
             _ => return Err(FieldError(format!("slot out of range: {}", raw))),
         };
-        if seen[slot] {
+        if out.slots[slot].is_some() {
             return Err(FieldError(format!("slot {slot} is listed twice")));
         }
-        seen[slot] = true;
-        match s.get("type").and_then(Value::as_str) {
-            Some("uint") | Some("text") => {}
+        let slot_type = match s.get("type").and_then(Value::as_str) {
+            Some("uint") => SlotType::Uint,
+            Some("text") => SlotType::Text,
             _ => return Err(FieldError(format!("slot {slot} has an unknown type"))),
+        };
+        if !matches!(s.get("path"), Some(Value::String(p)) if !p.is_empty()) {
+            return Err(FieldError(format!("slot {slot} has no path")));
         }
-        match s.get("comparable") {
-            None => {}
-            Some(Value::Bool(b)) => mask[slot] = *b,
+        if !matches!(s.get("unit"), None | Some(Value::String(_))) {
+            return Err(FieldError(format!("slot {slot}: unit is a string")));
+        }
+        if let Some(scale) = s.get("scale") {
+            if !matches!(json_integer(scale), Some(n) if n >= 1) {
+                return Err(FieldError(format!("slot {slot}: scale is a positive integer")));
+            }
+        }
+        let comparable = match s.get("comparable") {
+            None => false,
+            Some(Value::Bool(b)) => *b,
             Some(_) => return Err(FieldError(format!("slot {slot}: comparable is true or false"))),
+        };
+        let format = match s.get("format") {
+            None => None,
+            Some(f) => match (slot_type, f.as_str().and_then(FieldFormat::from_name)) {
+                (SlotType::Text, Some(f)) => Some(f),
+                _ => return Err(FieldError(format!("slot {slot}: format is allele-pair, allele or code, on a text slot"))),
+            },
+        };
+        if comparable && slot_type == SlotType::Text && format.is_none() {
+            return Err(FieldError(format!("slot {slot}: a comparable text slot declares a format")));
         }
+        out.slots[slot] = Some(SlotDecl { slot_type, format, comparable });
+        out.comparable[slot] = comparable;
+        out.numeric[slot] = slot_type == SlotType::Uint;
     }
-    Ok(mask)
+    Ok(out)
 }
 
-/// `schemaId = H("veilcore:v1:fschema", SHA-256(canonical schema), comparable mask, k)`.
+/// Which slots count towards distinctness. Validates the schema as [`schema_masks`] does.
+pub fn comparable_mask(schema: &Value) -> Result<[bool; FIELD_SLOTS], FieldError> {
+    Ok(schema_masks(schema)?.comparable)
+}
+
+/// `schemaId = H("veilcore:v1:fschema", SHA-256(canonical schema), comparable mask,
+/// count(k), numeric mask)`.
 ///
-/// The mask and k are hashed in alongside the document so a claim cannot use a
-/// different threshold or set of slots than the schema publishes.
+/// The masks and k are hashed in alongside the document so a claim cannot choose them,
+/// and the numeric mask lets the claims contract refuse a range claim on a slot that is
+/// not a number.
 pub fn field_schema_id(schema: &Value) -> Result<Bytes32, FieldError> {
+    let masks = schema_masks(schema)?;
     let k = match schema.get("k").and_then(json_integer) {
         Some(k) if (1..=FIELD_SLOTS as i128).contains(&k) => k as u64,
         _ => return Err(FieldError::new("k is 1 to 16")),
     };
-    let mask = comparable_mask(schema)?;
-    if (mask.iter().filter(|&&b| b).count() as u64) < k {
+    if (masks.comparable.iter().filter(|&&b| b).count() as u64) < k {
         return Err(FieldError::new("k is more than the number of comparable slots"));
     }
     Ok(hash_elements(&[
         &tag("veilcore:v1:fschema"),
         &schema_document_digest(schema)?,
-        &mask_slot_value(&mask),
+        &mask_slot_value(&masks.comparable),
         &count_bytes(k),
+        &mask_slot_value(&masks.numeric),
     ]))
 }
 
@@ -370,23 +509,26 @@ pub fn typed_slot_values(schema: &Value, values: &[Value]) -> Result<[Bytes32; F
     if values.len() != FIELD_SLOTS {
         return Err(FieldError::new("a field set has 16 slots"));
     }
-    comparable_mask(schema)?; // validates the slot list, so every entry below is well formed
-    let mut declared: [Option<&str>; FIELD_SLOTS] = [None; FIELD_SLOTS];
-    for s in schema.get("slots").and_then(Value::as_array).into_iter().flatten() {
-        if let (Some(i), Some(t)) = (s.get("slot").and_then(json_integer), s.get("type").and_then(Value::as_str)) {
-            declared[i as usize] = Some(t);
-        }
-    }
+    let declared = schema_masks(schema)?.slots;
     let mut out = [ABSENT_VALUE; FIELD_SLOTS];
     for (i, v) in values.iter().enumerate() {
         // Arrays count as objects here, as they do for the reference's `typeof`: an array
         // has neither kind and is refused below or by slot_value_of.
         if v.is_object() || v.is_array() {
-            let kind = v.get("uint").map(|_| "uint").or_else(|| v.get("text").map(|_| "text"));
-            match declared[i] {
-                None => return Err(FieldError(format!("slot {i} is not described by the schema, so it must be empty"))),
-                Some(t) if kind != Some(t) => return Err(FieldError(format!("slot {i} holds {t} values"))),
-                Some(_) => {}
+            let kind = match (v.get("uint"), v.get("text")) {
+                (Some(_), _) => Some(SlotType::Uint),
+                (None, Some(_)) => Some(SlotType::Text),
+                (None, None) => None,
+            };
+            let decl = declared[i]
+                .ok_or_else(|| FieldError(format!("slot {i} is not described by the schema, so it must be empty")))?;
+            if kind != Some(decl.slot_type) {
+                let t = if decl.slot_type == SlotType::Uint { "uint" } else { "text" };
+                return Err(FieldError(format!("slot {i} holds {t} values")));
+            }
+            if let Some(format) = decl.format {
+                let text = v.get("text").and_then(Value::as_str).ok_or_else(|| FieldError::new("text is a string"))?;
+                check_format(format, text)?;
             }
         }
         out[i] = slot_value_of(v)?;
@@ -499,10 +641,10 @@ mod tests {
     use serde_json::json;
 
     /// The example schema from the sdk's profiles/fields, as the vectors carry it.
-    const SCHEMA: &str = r#"{"id":"veilcore/fields/plant-variety-dus-example/v1","title":"EXAMPLE field schema: 12 marker loci and four traits for a plant variety","status":"example — not adopted by any body; a real schema names the crop, the panel and k from the examining body's guidance","slots":[{"slot":0,"path":"identification.data.loci[0]","type":"text","comparable":true},{"slot":1,"path":"identification.data.loci[1]","type":"text","comparable":true},{"slot":2,"path":"identification.data.loci[2]","type":"text","comparable":true},{"slot":3,"path":"identification.data.loci[3]","type":"text","comparable":true},{"slot":4,"path":"identification.data.loci[4]","type":"text","comparable":true},{"slot":5,"path":"identification.data.loci[5]","type":"text","comparable":true},{"slot":6,"path":"identification.data.loci[6]","type":"text","comparable":true},{"slot":7,"path":"identification.data.loci[7]","type":"text","comparable":true},{"slot":8,"path":"identification.data.loci[8]","type":"text","comparable":true},{"slot":9,"path":"identification.data.loci[9]","type":"text","comparable":true},{"slot":10,"path":"identification.data.loci[10]","type":"text","comparable":true},{"slot":11,"path":"identification.data.loci[11]","type":"text","comparable":true},{"slot":12,"path":"profileData.germinationPercent","type":"uint","scale":100,"unit":"percent"},{"slot":13,"path":"profileData.purityPercent","type":"uint","scale":100,"unit":"percent"},{"slot":14,"path":"profileData.yieldKgPerHa","type":"uint","scale":1,"unit":"kg/ha"},{"slot":15,"path":"profileData.moisturePercent","type":"uint","scale":100,"unit":"percent"}],"k":3}"#;
+    const SCHEMA: &str = r#"{"id":"veilcore/fields/plant-variety-dus-example/v1","title":"EXAMPLE field schema: 12 SSR loci and four traits for a plant variety","status":"example only, not adopted by any body; a real schema names the crop and marker panel, and takes k from the examining body's guidance","note":"Paths name the holder's private `fields` object. A value in a field set shall not also appear in the record's committed JSON, or disclosing the JSON would disclose it.","slots":[{"slot":0,"path":"fields.loci[0]","type":"text","format":"allele-pair","comparable":true},{"slot":1,"path":"fields.loci[1]","type":"text","format":"allele-pair","comparable":true},{"slot":2,"path":"fields.loci[2]","type":"text","format":"allele-pair","comparable":true},{"slot":3,"path":"fields.loci[3]","type":"text","format":"allele-pair","comparable":true},{"slot":4,"path":"fields.loci[4]","type":"text","format":"allele-pair","comparable":true},{"slot":5,"path":"fields.loci[5]","type":"text","format":"allele-pair","comparable":true},{"slot":6,"path":"fields.loci[6]","type":"text","format":"allele-pair","comparable":true},{"slot":7,"path":"fields.loci[7]","type":"text","format":"allele-pair","comparable":true},{"slot":8,"path":"fields.loci[8]","type":"text","format":"allele-pair","comparable":true},{"slot":9,"path":"fields.loci[9]","type":"text","format":"allele-pair","comparable":true},{"slot":10,"path":"fields.loci[10]","type":"text","format":"allele-pair","comparable":true},{"slot":11,"path":"fields.loci[11]","type":"text","format":"allele-pair","comparable":true},{"slot":12,"path":"fields.germinationPercent","type":"uint","scale":100,"unit":"percent"},{"slot":13,"path":"fields.purityPercent","type":"uint","scale":100,"unit":"percent"},{"slot":14,"path":"fields.varietyName","type":"text"},{"slot":15,"path":"fields.yieldKgPerHa","type":"uint","scale":1,"unit":"kg/ha"}],"k":3}"#;
 
     /// conformance/vectors.json fieldSets[0].expected, verbatim.
-    const FIRST_VECTOR: &str = r#"{"schemaDocumentDigest":"579a4560eab2755276ee7b35e585c229eb0b07c42af4d01486225be12c64bff7","schemaId":"9dd68c656b770881cad6e2be6dfc04a9b495fb90d83b78a8b295a425a7690861","slotValues":["a70dfed1d20bc248a82f687043bf842ff3e8450e4face9a1b4a73354b87ad4b6","10579c4c91c494b285b2417e68ed12c873b9d0389dc01d8d38315f683500de50","0eb2c9301347120ba0f0f7a41bcea892b1472431f3420d7d50bff1529d0bbc82","37da373c58b805b2459a6e8a94886a37158d9fb329df201cd7e52e87c9ba21a1","53fea90639640594be768ad931f128ac7100c894531eb9f2f69abe79a33dfa73","9361c2085e721f3a61b699c233b488d0652216afa2ee0d51c01322a6d1104516","90b3f983db40984723e059d544061e323eff55d5b81205383630a9b0068b64e3","b87281da2638775719aeeed1c9995c30141895b7bfdb320e1954295d9b4c59a6","2f8d90b3bbb7acdc26027eabdc828310df2387dc9da5528ab2022dfb1aeb0d1f","2da1e2c4855358a6faf21f046083a33c4a1b15b343a14fbc373887886d1932ac","4e6a61d8baafd7042e9d1b31ead836d023375e61efc9202971d4fb62541b06ea","fc6144d28fc3a540ad6cd21c00e87303a9aff664c497f7e32931583851596247","b225000000000000010000000000000000000000000000000000000000000000","fc26000000000000010000000000000000000000000000000000000000000000","0019000000000000010000000000000000000000000000000000000000000000","0000000000000000000000000000000000000000000000000000000000000000"],"salts":["05177a4d698cefc094277881301d6052b45ef07252d013796a109e9ce94758b2","12ae01188b7ee74a73111e9deef3b8b3c1e8ff8e09ccc92a4e37eab8861feec9","1eba963044069ce2677d14c30f258becbc66df2d388578ad910e9bb3d049be0f","3410be0c50c014f465d9c08710ed8c1270219c77e87ee2751d15e1a090db6e02","aa7bd08038416a2195c43247b6f7fb06af310de2d4697173922913f62f4b3898","73c1a1d6b0c6541c596e658a2d3d1fe27c85a0c879d51db76ea596dc263d9a7b","c35b5a91e9da9d9ce0f6f94e014eb1004ba03d3512b050a5c611b4e4e1768daa","eb50f397b1bf77e16950c2ddf925153521de562665cb8c6d39767956777ebf7a","3759af9e38defb05962766ff635f4e4a284e447d9b60594ed4aeef268d0edfc3","e8454f1912311c505d9c21db038d7a22137dd7daea625fbd0c96f19d84dfbbf5","1fc229d4af3ffcc44f96c2490f521d553633e835604dc544b3dd91c4e2a2b88a","add98991cf4ffa72da510b1f32ee297dc23ebe90991a4583152406231e8db32c","ae27b23ad0f0641df99060c7690e0489a6784c61a47f60627d49d0b48309d04a","85841a2ec8aad9fe070dd399c83da7aaad8e3d6c6bf6bf2b822896dbdb969792","916e7627a6a806ff90bbb54dcb4f3d7740812d8634257ac5fc045d28b4876ff9","a0ffed7125631f1421c916a84ad727f183f202ae43c29dfd6f38ee0f672ae2f2"],"setRoot":"bcc7a07c54b73978c378b1056f52c7fb34fa7a92f85470d7f8c33f15f8758dec","openings":[{"slot":3,"siblings":["a9bf65ca4d6f527e7df4a2cc25ea9abe62a22b21f00a87711be4ec276f3f8b29","2ca62b36834ff43c88c1de28b543ea863f297ba025af2bf79a70b84e526f9c27","f72bc244a43ce77e9f3f64a7ae0f8737d93da6d3dcc2d05959e22e52da406680","df761378c8d618ce1f8e1cd012f79279cd372fef2fe0c5195f186e41010c23da"],"bits":[true,true,false,false]},{"slot":12,"siblings":["7f330dd8c8bb3c5ebbec9fcd2d1fbb7ef264729a8eaed2f5ab987d047d13884f","3b7ccd70eb0446844e9ae20f6e431b938cdd8a19056958e29d5069a6f0082177","3e207ea25bd86009c31b229cacb858238a5a052de6e3121482ec668c5109e031","3c8310cff5db406aa52178b7b5c952e6977a6036ffcf187a2295cd2e483e348f"],"bits":[false,false,true,true]},{"slot":15,"siblings":["77a5f49b927b7821f1fc24765cea9e8e3cec0f77eb7fe2b7572f4d8a451c2e7b","f800efde4dbbb4901dbdd87e8655b60c6d083b7fbb42b4a4a65c13af87d65288","3e207ea25bd86009c31b229cacb858238a5a052de6e3121482ec668c5109e031","3c8310cff5db406aa52178b7b5c952e6977a6036ffcf187a2295cd2e483e348f"],"bits":[true,true,true,true]}]}"#;
+    const FIRST_VECTOR: &str = r#"{"schemaDocumentDigest":"385c5055fc315e4dd20566abda6a79709d22dcfe2a0e96e240cdcb15fd10b223","schemaId":"53304a427e34f78ebbb162464ca1a2fe67a51ed70b28ac2f1a61bee19c37d754","slotValues":["a70dfed1d20bc248a82f687043bf842ff3e8450e4face9a1b4a73354b87ad4b6","10579c4c91c494b285b2417e68ed12c873b9d0389dc01d8d38315f683500de50","0eb2c9301347120ba0f0f7a41bcea892b1472431f3420d7d50bff1529d0bbc82","37da373c58b805b2459a6e8a94886a37158d9fb329df201cd7e52e87c9ba21a1","53fea90639640594be768ad931f128ac7100c894531eb9f2f69abe79a33dfa73","9361c2085e721f3a61b699c233b488d0652216afa2ee0d51c01322a6d1104516","90b3f983db40984723e059d544061e323eff55d5b81205383630a9b0068b64e3","b87281da2638775719aeeed1c9995c30141895b7bfdb320e1954295d9b4c59a6","2f8d90b3bbb7acdc26027eabdc828310df2387dc9da5528ab2022dfb1aeb0d1f","2da1e2c4855358a6faf21f046083a33c4a1b15b343a14fbc373887886d1932ac","4e6a61d8baafd7042e9d1b31ead836d023375e61efc9202971d4fb62541b06ea","fc6144d28fc3a540ad6cd21c00e87303a9aff664c497f7e32931583851596247","b225000000000000010000000000000000000000000000000000000000000000","fc26000000000000010000000000000000000000000000000000000000000000","7774ad14e6e1de7ddea14d6c0e443173f408ed12fd04e91c259d9c8b9a131ff2","0019000000000000010000000000000000000000000000000000000000000000"],"salts":["05177a4d698cefc094277881301d6052b45ef07252d013796a109e9ce94758b2","12ae01188b7ee74a73111e9deef3b8b3c1e8ff8e09ccc92a4e37eab8861feec9","1eba963044069ce2677d14c30f258becbc66df2d388578ad910e9bb3d049be0f","3410be0c50c014f465d9c08710ed8c1270219c77e87ee2751d15e1a090db6e02","aa7bd08038416a2195c43247b6f7fb06af310de2d4697173922913f62f4b3898","73c1a1d6b0c6541c596e658a2d3d1fe27c85a0c879d51db76ea596dc263d9a7b","c35b5a91e9da9d9ce0f6f94e014eb1004ba03d3512b050a5c611b4e4e1768daa","eb50f397b1bf77e16950c2ddf925153521de562665cb8c6d39767956777ebf7a","3759af9e38defb05962766ff635f4e4a284e447d9b60594ed4aeef268d0edfc3","e8454f1912311c505d9c21db038d7a22137dd7daea625fbd0c96f19d84dfbbf5","1fc229d4af3ffcc44f96c2490f521d553633e835604dc544b3dd91c4e2a2b88a","add98991cf4ffa72da510b1f32ee297dc23ebe90991a4583152406231e8db32c","ae27b23ad0f0641df99060c7690e0489a6784c61a47f60627d49d0b48309d04a","85841a2ec8aad9fe070dd399c83da7aaad8e3d6c6bf6bf2b822896dbdb969792","916e7627a6a806ff90bbb54dcb4f3d7740812d8634257ac5fc045d28b4876ff9","a0ffed7125631f1421c916a84ad727f183f202ae43c29dfd6f38ee0f672ae2f2"],"setRoot":"c2d318520d0c3273ac0dae976dbeeece5b81adf841bf09b894cb42feec141b17","openings":[{"slot":3,"siblings":["a9bf65ca4d6f527e7df4a2cc25ea9abe62a22b21f00a87711be4ec276f3f8b29","2ca62b36834ff43c88c1de28b543ea863f297ba025af2bf79a70b84e526f9c27","f72bc244a43ce77e9f3f64a7ae0f8737d93da6d3dcc2d05959e22e52da406680","20b874440b0b914a480ad8b2f04c13c053d48f7593856036e0fa3680599b99b4"],"bits":[true,true,false,false]},{"slot":12,"siblings":["7f330dd8c8bb3c5ebbec9fcd2d1fbb7ef264729a8eaed2f5ab987d047d13884f","032847391f830b60c55eae87f0e4369a3df01d44036d5eeef6da41417e1176e8","3e207ea25bd86009c31b229cacb858238a5a052de6e3121482ec668c5109e031","3c8310cff5db406aa52178b7b5c952e6977a6036ffcf187a2295cd2e483e348f"],"bits":[false,false,true,true]},{"slot":15,"siblings":["2541a025d1732b434bf59fc9f88ecae96c159da6aa0d13585872fe2c9019c37d","f800efde4dbbb4901dbdd87e8655b60c6d083b7fbb42b4a4a65c13af87d65288","3e207ea25bd86009c31b229cacb858238a5a052de6e3121482ec668c5109e031","3c8310cff5db406aa52178b7b5c952e6977a6036ffcf187a2295cd2e483e348f"],"bits":[true,true,true,true]}]}"#;
 
     fn schema() -> Value {
         serde_json::from_str(SCHEMA).unwrap()
@@ -515,7 +657,7 @@ mod tests {
                 {"text":"233/233"},{"text":"180/184"},{"text":"201/201"},{"text":"155/159"},
                 {"text":"312/318"},{"text":"140/140"},{"text":"222/226"},{"text":"199/199"},
                 {"text":"260/264"},{"text":"175/175"},{"text":"290/290"},{"text":"133/137"},
-                {"uint":"9650"},{"uint":"9980"},{"uint":"6400"},null
+                {"uint":"9650"},{"uint":"9980"},{"text":"Harbour Mist"},{"uint":"6400"}
             ],
             "fieldSecret": "1".repeat(64),
             "open": [3, 12, 15]
@@ -558,7 +700,7 @@ mod tests {
         let decomposed = slot_value_of(&json!({"text":"Cafe\u{0301}"})).unwrap();
         let composed = slot_value_of(&json!({"text":"Caf\u{00e9}"})).unwrap();
         assert_eq!(decomposed, composed);
-        // conformance/vectors.json fieldSets[2], slot 0.
+        // conformance/vectors.json fieldSets[2], slot 14.
         assert_eq!(hex(&decomposed), "73473dcc12b763085904a5279d048c4d5b3b008c46f1f32443b99de04aa83a14");
     }
 
@@ -566,11 +708,11 @@ mod tests {
     fn the_schema_id_matches_the_vectors() {
         assert_eq!(
             hex(&schema_document_digest(&schema()).unwrap()),
-            "579a4560eab2755276ee7b35e585c229eb0b07c42af4d01486225be12c64bff7"
+            "385c5055fc315e4dd20566abda6a79709d22dcfe2a0e96e240cdcb15fd10b223"
         );
         assert_eq!(
             hex(&field_schema_id(&schema()).unwrap()),
-            "9dd68c656b770881cad6e2be6dfc04a9b495fb90d83b78a8b295a425a7690861"
+            "53304a427e34f78ebbb162464ca1a2fe67a51ed70b28ac2f1a61bee19c37d754"
         );
     }
 
@@ -645,10 +787,109 @@ mod tests {
     fn a_slot_the_schema_does_not_describe_must_be_empty() {
         let mut i = first_input();
         i["schema"]["slots"].as_array_mut().unwrap().pop(); // slot 15 no longer described
-        i["schema"]["k"] = json!(3);
-        assert!(field_set_summary(&i).is_ok(), "slot 15 is null in the first vector");
-        i["values"][15] = json!({"uint":"1"});
+        i["values"][15] = Value::Null;
+        i["open"] = json!([]);
+        assert!(field_set_summary(&i).is_ok(), "an undescribed slot may be empty");
+        i["values"][15] = json!({"uint":"6400"});
         expect_refused(i);
+    }
+
+    #[test]
+    fn the_numeric_mask_is_in_the_schema_id() {
+        let m = schema_masks(&schema()).unwrap();
+        let numeric: Vec<usize> = (0..FIELD_SLOTS).filter(|&i| m.numeric[i]).collect();
+        assert_eq!(numeric, vec![12, 13, 15]);
+        // Same document digest, comparable mask and k, but without the numeric mask the
+        // id would be the round-one id; it is not.
+        let without = hash_elements(&[
+            &tag("veilcore:v1:fschema"),
+            &schema_document_digest(&schema()).unwrap(),
+            &mask_slot_value(&m.comparable),
+            &count_bytes(3),
+        ]);
+        let with = field_schema_id(&schema()).unwrap();
+        assert_ne!(with, without);
+        assert_eq!(
+            with,
+            hash_elements(&[
+                &tag("veilcore:v1:fschema"),
+                &schema_document_digest(&schema()).unwrap(),
+                &mask_slot_value(&m.comparable),
+                &count_bytes(3),
+                &mask_slot_value(&m.numeric),
+            ])
+        );
+    }
+
+    #[test]
+    fn schema_documents_are_checked() {
+        let mutate = |f: &dyn Fn(&mut Value)| {
+            let mut i = first_input();
+            f(&mut i["schema"]);
+            i
+        };
+        let refused: Vec<(&str, Value)> = vec![
+            ("no id", mutate(&|s| { s.as_object_mut().unwrap().remove("id"); })),
+            ("empty id", mutate(&|s| s["id"] = json!(""))),
+            ("id not a string", mutate(&|s| s["id"] = json!(7))),
+            ("no title", mutate(&|s| { s.as_object_mut().unwrap().remove("title"); })),
+            ("title not a string", mutate(&|s| s["title"] = json!(["x"]))),
+            ("schema not an object", mutate(&|s| *s = json!([1]))),
+            ("slot entry not an object", mutate(&|s| s["slots"][0] = json!(0))),
+            ("no path", mutate(&|s| { s["slots"][15].as_object_mut().unwrap().remove("path"); })),
+            ("empty path", mutate(&|s| s["slots"][15]["path"] = json!(""))),
+            ("unit not a string", mutate(&|s| s["slots"][15]["unit"] = json!(1))),
+            ("scale zero", mutate(&|s| s["slots"][15]["scale"] = json!(0))),
+            ("scale negative", mutate(&|s| s["slots"][15]["scale"] = json!(-1))),
+            ("scale fractional", mutate(&|s| s["slots"][15]["scale"] = json!(1.5))),
+            ("scale a string", mutate(&|s| s["slots"][15]["scale"] = json!("100"))),
+            ("format on a uint slot", mutate(&|s| s["slots"][15]["format"] = json!("allele"))),
+            ("unknown format", mutate(&|s| s["slots"][0]["format"] = json!("dna"))),
+            ("format inherited from Object", mutate(&|s| s["slots"][0]["format"] = json!("toString"))),
+            ("format as a list", mutate(&|s| s["slots"][0]["format"] = json!(["code"]))),
+            ("comparable text without format", mutate(&|s| { s["slots"][0].as_object_mut().unwrap().remove("format"); })),
+        ];
+        for (name, input) in refused {
+            assert!(field_set_summary(&input).is_err(), "accepted: {name}");
+        }
+        // A non-comparable text slot needs no format; scale 2.0 is the integer 2.
+        let ok = mutate(&|s| s["slots"][15]["scale"] = json!(2.0));
+        assert!(field_set_summary(&ok).is_ok());
+    }
+
+    #[test]
+    fn formats_accept_only_their_canonical_form() {
+        use FieldFormat::*;
+        for (f, t) in [
+            (AllelePair, "180/184"), (AllelePair, "233/233"), (AllelePair, "0/0"),
+            (AllelePair, "999999999/999999999"), (Allele, "233"), (Allele, "0"),
+            (Code, "A"), (Code, "9"), (Code, "SNP-12_B.3"),
+        ] {
+            assert_eq!(check_format(f, t), Ok(()), "{t}");
+        }
+        let long_code = "A".repeat(65);
+        for (f, t) in [
+            (AllelePair, "184/180"), (AllelePair, "090/184"), (AllelePair, "180 / 184"),
+            (AllelePair, "180"), (AllelePair, "180/184/190"), (AllelePair, "1000000000/1000000000"),
+            (AllelePair, "/184"), (AllelePair, "+1/2"), (Allele, "01"), (Allele, ""),
+            (Allele, "233\n"), (Allele, "２３３"), (Code, ""), (Code, "-A"), (Code, "abc"),
+            (Code, "A B"), (Code, long_code.as_str()),
+        ] {
+            assert!(check_format(f, t).is_err(), "accepted {t:?}");
+        }
+    }
+
+    #[test]
+    fn values_in_a_formatted_slot_are_checked() {
+        for bad in ["184/180", "090/184", "180 / 184"] {
+            let mut i = first_input();
+            i["values"][0] = json!({ "text": bad });
+            expect_refused(i);
+        }
+        // An unformatted text slot takes any text.
+        let mut i = first_input();
+        i["values"][14] = json!({"text":"anything at all / 2"});
+        assert!(field_set_summary(&i).is_ok());
     }
 
     #[test]
