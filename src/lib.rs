@@ -50,6 +50,9 @@ pub enum CanonicalError {
     /// `sha256/fields/v1`, including a missing or non-string one. A name that only looks
     /// like a supported one, with a trailing space say, is refused rather than guessed at.
     UnsupportedCommitmentAlgorithm { algorithm: String },
+    /// A record without one of the committed fields every record has (section 3.1).
+    /// Hashing it anyway would give a commitment to something that is not a record.
+    MissingRequiredField { field: &'static str },
 }
 
 impl std::fmt::Display for CanonicalError {
@@ -85,6 +88,9 @@ impl std::fmt::Display for CanonicalError {
             ),
             CanonicalError::UnsupportedCommitmentAlgorithm { algorithm } => {
                 write!(f, "unsupported commitment algorithm: {}", algorithm)
+            }
+            CanonicalError::MissingRequiredField { field } => {
+                write!(f, "a record needs {} (spec 3.1)", field)
             }
         }
     }
@@ -231,6 +237,11 @@ pub fn committed_fields(envelope: &Value) -> Value {
     Value::Object(out)
 }
 
+/// Committed fields every record has, per section 3.1. A record missing one is refused
+/// rather than hashed.
+pub const REQUIRED_COMMITTED: [&str; 7] =
+    ["formatVersion", "recordId", "subjectType", "profile", "sealedAt", "holder", "profileData"];
+
 /// Compute a record commitment, per section 4.1.
 ///
 /// Plain SHA-256 over the canonical serialisation. No ledger, no specialised runtime.
@@ -246,6 +257,13 @@ pub fn committed_fields(envelope: &Value) -> Value {
 ///   JSON digest)`, so the commitment also binds a field set whose slots can be proved
 ///   one at a time. Both bindings must be 64 lowercase hex characters.
 pub fn compute_commitment(envelope: &Value) -> Result<String, CanonicalError> {
+    // Absent, not null: a null here is present, and the canonicaliser refuses it below
+    // with the field named (section 4.4 rule 4).
+    for field in REQUIRED_COMMITTED {
+        if envelope.get(field).is_none() {
+            return Err(CanonicalError::MissingRequiredField { field });
+        }
+    }
     let json_digest = || -> Result<[u8; 32], CanonicalError> {
         Ok(Sha256::digest(canonicalise(&committed_fields(envelope))?.as_bytes()).into())
     };
@@ -570,6 +588,35 @@ mod tests {
                 assert!(!verify_commitment(&r));
             }
         }
+    }
+
+    #[test]
+    fn a_record_missing_a_required_field_is_refused() {
+        for field in REQUIRED_COMMITTED {
+            for algorithm in ["sha256/canonical-json/v1", "sha256/fields/v1"] {
+                let mut r = fields_record();
+                if algorithm != FIELDS_ALGORITHM {
+                    let o = r.as_object_mut().unwrap();
+                    o.remove("fieldSchema");
+                    o.remove("fieldSetRoot");
+                }
+                r["commitmentAlgorithm"] = json!(algorithm);
+                r.as_object_mut().unwrap().remove(field);
+                assert_eq!(
+                    compute_commitment(&r),
+                    Err(CanonicalError::MissingRequiredField { field }),
+                    "{field} under {algorithm}"
+                );
+            }
+        }
+        // Optional committed fields may be absent.
+        let mut r = fields_record();
+        for optional in ["supersedes", "subject", "extensions", "attestations", "parents"] {
+            r.as_object_mut().unwrap().remove(optional);
+        }
+        assert!(compute_commitment(&r).is_ok());
+        // Not an object at all.
+        assert!(compute_commitment(&json!([1])).is_err());
     }
 
     #[test]
