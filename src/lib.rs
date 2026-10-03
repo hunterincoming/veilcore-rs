@@ -491,6 +491,13 @@ mod tests {
         upper["fieldSetRoot"] = json!(upper["fieldSetRoot"].as_str().unwrap().to_uppercase());
         assert!(compute_commitment(&upper).is_err());
 
+        let mut listed = fields_record();
+        listed["fieldSchema"] = json!([listed["fieldSchema"].clone()]);
+        assert_eq!(
+            compute_commitment(&listed),
+            Err(CanonicalError::InvalidFieldBinding { field: "fieldSchema" })
+        );
+
         let mut no_schema = fields_record();
         no_schema.as_object_mut().unwrap().remove("fieldSchema");
         assert_eq!(

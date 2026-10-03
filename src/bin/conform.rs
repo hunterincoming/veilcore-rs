@@ -16,9 +16,21 @@ use veilcore_records::{
 };
 
 fn main() {
+    // Input this implementation cannot read is refused like any other invalid input, not
+    // crashed on. serde_json refuses an unpaired surrogate escape at parse time, which is
+    // the refusal spec 4.4 rule 1 asks for; it should arrive as one.
     let mut input = String::new();
-    std::io::stdin().read_to_string(&mut input).expect("read stdin");
-    let job: Value = serde_json::from_str(&input).expect("parse job");
+    if let Err(e) = std::io::stdin().read_to_string(&mut input) {
+        println!("{}", json!({ "error": format!("could not read the job: {e}"), "rejected": true }));
+        return;
+    }
+    let job: Value = match serde_json::from_str(&input) {
+        Ok(job) => job,
+        Err(e) => {
+            println!("{}", json!({ "error": format!("could not parse the job: {e}"), "rejected": true }));
+            return;
+        }
+    };
 
     let result = match job["op"].as_str() {
         Some("canonicalise") => match canonicalise(&job["input"]) {

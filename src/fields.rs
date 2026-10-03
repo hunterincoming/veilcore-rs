@@ -361,6 +361,39 @@ pub fn slot_value_of(v: &Value) -> Result<Bytes32, FieldError> {
     Err(FieldError::new("a slot value is {uint}, {text} or null"))
 }
 
+/// Typed values for all 16 slots, checked against the schema, as 32-byte slot values.
+///
+/// A non-null value must match its slot's declared type, and a slot the schema does not
+/// describe must be empty: otherwise a text hash could sit in a number slot and a range
+/// claim would run over it.
+pub fn typed_slot_values(schema: &Value, values: &[Value]) -> Result<[Bytes32; FIELD_SLOTS], FieldError> {
+    if values.len() != FIELD_SLOTS {
+        return Err(FieldError::new("a field set has 16 slots"));
+    }
+    comparable_mask(schema)?; // validates the slot list, so every entry below is well formed
+    let mut declared: [Option<&str>; FIELD_SLOTS] = [None; FIELD_SLOTS];
+    for s in schema.get("slots").and_then(Value::as_array).into_iter().flatten() {
+        if let (Some(i), Some(t)) = (s.get("slot").and_then(json_integer), s.get("type").and_then(Value::as_str)) {
+            declared[i as usize] = Some(t);
+        }
+    }
+    let mut out = [ABSENT_VALUE; FIELD_SLOTS];
+    for (i, v) in values.iter().enumerate() {
+        // Arrays count as objects here, as they do for the reference's `typeof`: an array
+        // has neither kind and is refused below or by slot_value_of.
+        if v.is_object() || v.is_array() {
+            let kind = v.get("uint").map(|_| "uint").or_else(|| v.get("text").map(|_| "text"));
+            match declared[i] {
+                None => return Err(FieldError(format!("slot {i} is not described by the schema, so it must be empty"))),
+                Some(t) if kind != Some(t) => return Err(FieldError(format!("slot {i} holds {t} values"))),
+                Some(_) => {}
+            }
+        }
+        out[i] = slot_value_of(v)?;
+    }
+    Ok(out)
+}
+
 /// One opened slot as the conformance vectors report it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpeningSummary {
@@ -432,10 +465,7 @@ pub fn field_set_summary(input: &Value) -> Result<FieldSetSummary, FieldError> {
     let schema = input.get("schema").unwrap_or(&Value::Null);
     let schema_id = field_schema_id(schema)?;
 
-    let mut values = [ABSENT_VALUE; FIELD_SLOTS];
-    for (out, v) in values.iter_mut().zip(typed) {
-        *out = slot_value_of(v)?;
-    }
+    let values = typed_slot_values(schema, typed)?;
     let fs = seal_field_set(schema_id, values, &secret);
 
     let requested: &[Value] = match input.get("open") {
@@ -598,6 +628,27 @@ mod tests {
         let mut bad_open = first_input();
         bad_open["open"] = json!([16]);
         expect_refused(bad_open);
+    }
+
+    #[test]
+    fn a_value_must_match_its_slot_type() {
+        let mut text_in_uint = first_input();
+        text_in_uint["values"][12] = json!({"text":"9650"});
+        expect_refused(text_in_uint);
+
+        let mut uint_in_text = first_input();
+        uint_in_text["values"][0] = json!({"uint":"233"});
+        expect_refused(uint_in_text);
+    }
+
+    #[test]
+    fn a_slot_the_schema_does_not_describe_must_be_empty() {
+        let mut i = first_input();
+        i["schema"]["slots"].as_array_mut().unwrap().pop(); // slot 15 no longer described
+        i["schema"]["k"] = json!(3);
+        assert!(field_set_summary(&i).is_ok(), "slot 15 is null in the first vector");
+        i["values"][15] = json!({"uint":"1"});
+        expect_refused(i);
     }
 
     #[test]
