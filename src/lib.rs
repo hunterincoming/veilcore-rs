@@ -53,6 +53,10 @@ pub enum CanonicalError {
     /// A record without one of the committed fields every record has (section 3.1).
     /// Hashing it anyway would give a commitment to something that is not a record.
     MissingRequiredField { field: &'static str },
+    /// A `ledgerIdentity` that is not an object with a non-empty string `chain`, a 64
+    /// lowercase hex `identity`, an optional 64 lowercase hex `contractAddress` and
+    /// nothing else (section 3.6). Says which rule it broke.
+    InvalidLedgerIdentity { reason: String },
 }
 
 impl std::fmt::Display for CanonicalError {
@@ -92,6 +96,7 @@ impl std::fmt::Display for CanonicalError {
             CanonicalError::MissingRequiredField { field } => {
                 write!(f, "a record needs {} (spec 3.1)", field)
             }
+            CanonicalError::InvalidLedgerIdentity { reason } => write!(f, "{} (spec 3.6)", reason),
         }
     }
 }
@@ -211,7 +216,7 @@ pub fn sha256_hex(input: &str) -> String {
 /// null is never quietly read as either. Dropping nulls here, as this function did until
 /// October 2026, committed a record the other implementations refuse.
 pub fn committed_fields(envelope: &Value) -> Value {
-    const COMMITTED: [&str; 18] = [
+    const COMMITTED: [&str; 19] = [
         "formatVersion", "recordId", "subjectType", "profile", "commitmentAlgorithm",
         "sealedAt", "holder", "attestations", "parents", "profileData",
         "supersedes", "jurisdictionBindings", "extensions",
@@ -221,6 +226,8 @@ pub fn committed_fields(envelope: &Value) -> Value {
         // itself; having it in the JSON as well means anyone shown the JSON sees which
         // field set it belongs to, and one JSON cannot be paired with two field sets.
         "fieldSchema", "fieldSetRoot",
+        // Which ledger identity the record is bound to (section 3.6), when it is.
+        "ledgerIdentity",
     ];
     const ALWAYS_PRESENT: [&str; 2] = ["attestations", "parents"];
 
@@ -241,6 +248,33 @@ pub fn committed_fields(envelope: &Value) -> Value {
 /// rather than hashed.
 pub const REQUIRED_COMMITTED: [&str; 7] =
     ["formatVersion", "recordId", "subjectType", "profile", "sealedAt", "holder", "profileData"];
+
+/// Check an optional `ledgerIdentity`, per section 3.6: an object with `chain` a
+/// non-empty string, `identity` 64 lowercase hex characters, `contractAddress` the same
+/// if present, and no other key. Absent is fine; null is present and refused. Checked
+/// under both commitment algorithms.
+pub fn check_ledger_identity(envelope: &Value) -> Result<(), CanonicalError> {
+    let refuse = |reason: String| Err(CanonicalError::InvalidLedgerIdentity { reason });
+    let o = match envelope.get("ledgerIdentity") {
+        None => return Ok(()),
+        Some(Value::Object(o)) => o,
+        Some(_) => return refuse("ledgerIdentity is an object".into()),
+    };
+    if let Some(k) = o.keys().find(|k| !matches!(k.as_str(), "chain" | "contractAddress" | "identity")) {
+        return refuse(format!("ledgerIdentity has an unknown field: {k}"));
+    }
+    if !matches!(o.get("chain"), Some(Value::String(c)) if !c.is_empty()) {
+        return refuse("ledgerIdentity.chain is a non-empty string".into());
+    }
+    let hex32 = |v: Option<&Value>| v.and_then(Value::as_str).and_then(fields::parse_hex32).is_some();
+    if !hex32(o.get("identity")) {
+        return refuse("ledgerIdentity.identity is 64 lowercase hex characters".into());
+    }
+    if o.get("contractAddress").is_some() && !hex32(o.get("contractAddress")) {
+        return refuse("ledgerIdentity.contractAddress is 64 lowercase hex characters".into());
+    }
+    Ok(())
+}
 
 /// Compute a record commitment, per section 4.1.
 ///
@@ -264,6 +298,7 @@ pub fn compute_commitment(envelope: &Value) -> Result<String, CanonicalError> {
             return Err(CanonicalError::MissingRequiredField { field });
         }
     }
+    check_ledger_identity(envelope)?;
     let json_digest = || -> Result<[u8; 32], CanonicalError> {
         Ok(Sha256::digest(canonicalise(&committed_fields(envelope))?.as_bytes()).into())
     };
@@ -617,6 +652,68 @@ mod tests {
         assert!(compute_commitment(&r).is_ok());
         // Not an object at all.
         assert!(compute_commitment(&json!([1])).is_err());
+    }
+
+    fn with_ledger_identity(li: Value) -> Value {
+        let mut r = fields_record();
+        r["ledgerIdentity"] = li;
+        r
+    }
+
+    #[test]
+    fn a_well_formed_ledger_identity_is_committed() {
+        let li = json!({ "chain": "midnight", "identity": "a".repeat(64) });
+        let r = with_ledger_identity(li.clone());
+        assert_eq!(committed_fields(&r)["ledgerIdentity"], li);
+        let c = compute_commitment(&r).unwrap();
+        assert_ne!(c, compute_commitment(&fields_record()).unwrap());
+
+        let with_contract = with_ledger_identity(json!({
+            "chain": "midnight", "identity": "a".repeat(64), "contractAddress": "b".repeat(64)
+        }));
+        assert_ne!(compute_commitment(&with_contract).unwrap(), c);
+
+        // Under the other algorithm too.
+        let mut plain = r.clone();
+        let o = plain.as_object_mut().unwrap();
+        o.remove("fieldSchema");
+        o.remove("fieldSetRoot");
+        plain["commitmentAlgorithm"] = json!("sha256/canonical-json/v1");
+        assert!(compute_commitment(&plain).is_ok());
+    }
+
+    #[test]
+    fn a_malformed_ledger_identity_is_refused() {
+        let id = "a".repeat(64);
+        let bad = [
+            Value::Null,
+            json!("midnight"),
+            json!([]),
+            json!({ "identity": id }),
+            json!({ "chain": "", "identity": id }),
+            json!({ "chain": 1, "identity": id }),
+            json!({ "chain": "midnight" }),
+            json!({ "chain": "midnight", "identity": id.to_uppercase() }),
+            json!({ "chain": "midnight", "identity": "a".repeat(63) }),
+            json!({ "chain": "midnight", "identity": id, "contractAddress": null }),
+            json!({ "chain": "midnight", "identity": id, "contractAddress": "B".repeat(64) }),
+            json!({ "chain": "midnight", "identity": id, "network": "mainnet" }),
+        ];
+        for li in bad {
+            for algorithm in ["sha256/canonical-json/v1", "sha256/fields/v1"] {
+                let mut r = with_ledger_identity(li.clone());
+                if algorithm != FIELDS_ALGORITHM {
+                    let o = r.as_object_mut().unwrap();
+                    o.remove("fieldSchema");
+                    o.remove("fieldSetRoot");
+                }
+                r["commitmentAlgorithm"] = json!(algorithm);
+                assert!(
+                    matches!(compute_commitment(&r), Err(CanonicalError::InvalidLedgerIdentity { .. })),
+                    "accepted {li} under {algorithm}"
+                );
+            }
+        }
     }
 
     #[test]
