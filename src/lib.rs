@@ -31,6 +31,10 @@ pub enum CanonicalError {
     /// which is not valid JSON; resolving it means two implementations resolve
     /// differently.
     KeyCollisionAfterNormalisation { key: String },
+    /// A number above 2^53 - 1 in magnitude, per section 4.4 rule 8. Past it a double
+    /// no longer holds every integer, so an implementation that keeps big integers
+    /// exactly and one that rounds them commit different values for the same text.
+    NumberOutOfRange { text: String },
 }
 
 impl std::fmt::Display for CanonicalError {
@@ -50,11 +54,43 @@ impl std::fmt::Display for CanonicalError {
                 "two keys are identical after Unicode normalisation (\"{}\"); the record is invalid (spec 4.4 rule 1)",
                 key
             ),
+            CanonicalError::NumberOutOfRange { text } => write!(
+                f,
+                "the number {} is above 2^53 - 1 in magnitude and cannot be committed: use a string (spec 4.4 rule 8)",
+                text
+            ),
         }
     }
 }
 
 impl std::error::Error for CanonicalError {}
+
+const MAX_SAFE: f64 = 9_007_199_254_740_991.0;
+
+/// Serialise a number per RFC 8785 3.2.2.3: ECMAScript's Number.prototype.toString.
+///
+/// JSON gives no way to tell 95 from 95.0, and JavaScript cannot, so a float with an
+/// integral value serialises as an integer.
+fn number(n: &serde_json::Number) -> Result<String, CanonicalError> {
+    let out_of_range = || CanonicalError::NumberOutOfRange { text: n.to_string() };
+    if let Some(i) = n.as_i64() {
+        if (i as i128).abs() > 9_007_199_254_740_991 {
+            return Err(out_of_range());
+        }
+        return Ok(i.to_string());
+    }
+    if n.as_u64().is_some() {
+        // Every u64 not representable as i64 is far above 2^53.
+        return Err(out_of_range());
+    }
+    let f = n.as_f64().ok_or_else(out_of_range)?;
+    if !f.is_finite() || f.abs() > MAX_SAFE {
+        return Err(out_of_range());
+    }
+    // ryu-js implements ECMAScript's Number::toString exactly, including which of two
+    // equally short digit strings to choose; Rust's own formatting can pick the other.
+    Ok(ryu_js::Buffer::new().format(f).to_string())
+}
 
 /// Canonical serialisation, per specification section 4.4.
 ///
@@ -68,7 +104,7 @@ pub fn canonicalise(value: &Value) -> Result<String, CanonicalError> {
         // here rather than only where objects are walked is what makes that true.
         Value::Null => Err(CanonicalError::NullInCommittedField { key: None }),
         Value::Bool(b) => Ok(b.to_string()),
-        Value::Number(n) => Ok(n.to_string()),
+        Value::Number(n) => number(n),
         Value::String(s) => {
             // NFC first: an accented character composed one way and the same character
             // composed another are visually identical and hash differently.
