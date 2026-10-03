@@ -198,6 +198,12 @@ pub fn sha256_hex(input: &str) -> String {
 /// inside it - which is also what permits the same commitment to be anchored in more
 /// than one place. `terms` is excluded because terms are issued and revoked after
 /// sealing.
+///
+/// A field written as null is copied as null, so that canonicalising the result refuses
+/// the record (section 4.4 rule 4). Absent and null are different: an absent optional
+/// field is omitted and an absent `attestations` or `parents` is the empty list, but a
+/// null is never quietly read as either. Dropping nulls here, as this function did until
+/// October 2026, committed a record the other implementations refuse.
 pub fn committed_fields(envelope: &Value) -> Value {
     const COMMITTED: [&str; 18] = [
         "formatVersion", "recordId", "subjectType", "profile", "commitmentAlgorithm",
@@ -215,8 +221,8 @@ pub fn committed_fields(envelope: &Value) -> Value {
     let mut out = serde_json::Map::new();
     for field in COMMITTED {
         match envelope.get(field) {
-            Some(v) if !v.is_null() => { out.insert(field.to_string(), v.clone()); }
-            _ if ALWAYS_PRESENT.contains(&field) => {
+            Some(v) => { out.insert(field.to_string(), v.clone()); }
+            None if ALWAYS_PRESENT.contains(&field) => {
                 out.insert(field.to_string(), Value::Array(vec![]));
             }
             _ => {}
@@ -542,6 +548,47 @@ mod tests {
             compute_commitment(&no_schema),
             Err(CanonicalError::InvalidFieldBinding { field: "fieldSchema" })
         );
+    }
+
+    #[test]
+    fn a_committed_field_written_as_null_is_refused() {
+        for field in ["supersedes", "subject", "attestations", "parents", "holder", "extensions"] {
+            for algorithm in ["sha256/canonical-json/v1", "sha256/fields/v1"] {
+                let mut r = fields_record();
+                if algorithm != FIELDS_ALGORITHM {
+                    let o = r.as_object_mut().unwrap();
+                    o.remove("fieldSchema");
+                    o.remove("fieldSetRoot");
+                }
+                r["commitmentAlgorithm"] = json!(algorithm);
+                r[field] = Value::Null;
+                assert_eq!(
+                    compute_commitment(&r),
+                    Err(CanonicalError::NullInCommittedField { key: Some(field.to_string()) }),
+                    "{field} under {algorithm}"
+                );
+                assert!(!verify_commitment(&r));
+            }
+        }
+    }
+
+    #[test]
+    fn absent_attestations_and_parents_are_empty_lists() {
+        let mut absent = fields_record();
+        let o = absent.as_object_mut().unwrap();
+        o.remove("attestations");
+        o.remove("parents");
+        assert_eq!(compute_commitment(&absent), compute_commitment(&fields_record()));
+        assert_eq!(committed_fields(&absent)["parents"], json!([]));
+    }
+
+    #[test]
+    fn a_field_outside_the_commitment_may_be_null() {
+        // anchor and terms are not committed, so a null there is not this function's concern.
+        let mut r = fields_record();
+        r["anchor"] = Value::Null;
+        r["terms"] = Value::Null;
+        assert_eq!(compute_commitment(&r), compute_commitment(&fields_record()));
     }
 
     #[test]

@@ -16,7 +16,7 @@ whoever needs to implement it.
 
     cargo test
 
-Thirty-four of them, and they cover what the format requires an implementation to REFUSE
+Thirty-seven of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
 schema or slot value, comparable text not in its declared format, a commitment algorithm
@@ -30,7 +30,7 @@ that only agrees on valid input has not been shown to agree.
     git clone https://github.com/hunterincoming/veilcore-sdk
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform"
 
-Eighty-seven vectors, including field sets (`sha256/fields/v1`, spec 4.5). The runner speaks over stdin and stdout, so it drives any
+Ninety-three vectors, including field sets (`sha256/fields/v1`, spec 4.5). The runner speaks over stdin and stdout, so it drives any
 implementation in any language, and it fails rather than skips when one cannot answer an
 operation — a check that reports nothing is worse than a check that is missing.
 
@@ -51,7 +51,11 @@ form is accepted. Breaking:
 - `compute_commitment` now refuses any algorithm name other than exactly
   `sha256/canonical-json/v1` or `sha256/fields/v1`, including a missing one. It used
   to return the JSON digest for any name.
-- `fieldSchema` and `fieldSetRoot` are committed fields. The conformance binary now answers
+- `fieldSchema` and `fieldSetRoot` are committed fields.
+- A committed field written as null (`supersedes`, `subject`, ... and `attestations` or
+  `parents`) is refused with `NullInCommittedField`, as spec 4.4 rule 4 says. Until
+  0.3.0 `committed_fields` dropped it, so such a record got a commitment the other
+  implementations refuse. Absent `attestations` and `parents` still mean `[]`. The conformance binary now answers
 unreadable input with `{"error":...}` instead of panicking.
 
 Apache-2.0
