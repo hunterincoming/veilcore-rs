@@ -1,10 +1,10 @@
-//! An independent implementation of the VeilCore record format.
+//! A Rust implementation of the VeilCore record format.
 //!
 //! Written from the specification rather than translated from the TypeScript or Python
-//! implementations. That is the point of it: if three implementations written
-//! separately in three languages produce identical commitments, the specification is
-//! unambiguous. If they diverge, the specification is wrong, and a registry adopting it
-//! would find out the expensive way.
+//! implementations. All three have the same author, so agreement shows the rules give one
+//! answer across languages, not that a stranger could implement them from the text alone.
+//! Where they diverge, the specification is wrong, and a registry adopting it would find
+//! out the expensive way.
 //!
 //! Dependencies are SHA-256, a JSON parser, and Unicode normalisation - nothing else.
 //! A format that needs more than that to compute a commitment is a format that cannot
