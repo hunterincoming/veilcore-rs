@@ -14,6 +14,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
+pub mod fields;
+pub use fields::{field_set_summary, FieldError, FieldSet, FieldSetSummary, FIELDS_ALGORITHM, FIELD_SLOTS};
+
 /// Why a record was refused.
 ///
 /// These are refusals, not failures of this library. The specification says such a
@@ -35,6 +38,10 @@ pub enum CanonicalError {
     /// no longer holds every integer, so an implementation that keeps big integers
     /// exactly and one that rounds them commit different values for the same text.
     NumberOutOfRange { text: String },
+    /// A `sha256/fields/v1` record whose `fieldSetRoot` or `fieldSchema` is missing or
+    /// is not exactly 64 lowercase hexadecimal characters, per section 4.5. Names the
+    /// field at fault.
+    InvalidFieldBinding { field: &'static str },
 }
 
 impl std::fmt::Display for CanonicalError {
@@ -58,6 +65,11 @@ impl std::fmt::Display for CanonicalError {
                 f,
                 "the number {} is above 2^53 - 1 in magnitude and cannot be committed: use a string (spec 4.4 rule 8)",
                 text
+            ),
+            CanonicalError::InvalidFieldBinding { field } => write!(
+                f,
+                "sha256/fields/v1 needs {} as 64 lowercase hex characters (spec 4.5)",
+                field
             ),
         }
     }
@@ -172,12 +184,15 @@ pub fn sha256_hex(input: &str) -> String {
 /// than one place. `terms` is excluded because terms are issued and revoked after
 /// sealing.
 pub fn committed_fields(envelope: &Value) -> Value {
-    const COMMITTED: [&str; 16] = [
+    const COMMITTED: [&str; 17] = [
         "formatVersion", "recordId", "subjectType", "profile", "commitmentAlgorithm",
         "sealedAt", "holder", "attestations", "parents", "profileData",
         "supersedes", "jurisdictionBindings", "extensions",
         // What every subject has, wherever it comes from.
         "subject", "identification", "registrations",
+        // The schema a field set is sealed under (section 4.5). The field set root is
+        // not here: it is bound by the commitment itself, not by the JSON digest.
+        "fieldSchema",
     ];
     const ALWAYS_PRESENT: [&str; 2] = ["attestations", "parents"];
 
@@ -200,8 +215,26 @@ pub fn committed_fields(envelope: &Value) -> Value {
 ///
 /// Returns the reason rather than a bare failure: a party sealing a record needs to know
 /// which field was refused, not only that something was.
+///
+/// For `sha256/fields/v1` (section 4.5) the commitment is
+/// `H("veilcore:v1:frecord", fieldSetRoot, that same JSON digest)`, so it also binds a
+/// field set whose slots can be proved one at a time. Every other algorithm name gets
+/// the JSON digest; whether the name is a supported one is the verifier's question.
 pub fn compute_commitment(envelope: &Value) -> Result<String, CanonicalError> {
-    Ok(sha256_hex(&canonicalise(&committed_fields(envelope))?))
+    let json_digest: [u8; 32] = Sha256::digest(canonicalise(&committed_fields(envelope))?.as_bytes()).into();
+    if envelope.get("commitmentAlgorithm").and_then(Value::as_str) != Some(FIELDS_ALGORITHM) {
+        return Ok(hex(&json_digest));
+    }
+    let hex32 = |field: &'static str| {
+        envelope
+            .get(field)
+            .and_then(Value::as_str)
+            .and_then(fields::parse_hex32)
+            .ok_or(CanonicalError::InvalidFieldBinding { field })
+    };
+    let set_root = hex32("fieldSetRoot")?;
+    hex32("fieldSchema")?;
+    Ok(hex(&fields::field_record_commitment(&set_root, &json_digest)))
 }
 
 /// The bytes an attester signs, per section 7.
@@ -418,6 +451,61 @@ mod tests {
     fn an_invalid_record_does_not_verify() {
         let v = json!({ "commitment": "0".repeat(64), "holder": null });
         assert!(!verify_commitment(&v));
+    }
+
+    // ---- field sets bound into the commitment (section 4.5) ----
+
+    fn fields_record() -> Value {
+        json!({
+            "formatVersion": "0.1", "recordId": "vc_rec_conformance_fields_01",
+            "subjectType": "plant-genetic-material", "profile": "veilcore/profile/cannabis/v0.1",
+            "commitment": "", "commitmentAlgorithm": "sha256/fields/v1",
+            "anchor": { "chain": "midnight", "network": "undeployed" },
+            "sealedAt": "2026-01-01T00:00:00Z", "holder": { "id": "vc_hld_conformance" },
+            "parents": [], "attestations": [],
+            "profileData": { "cultivarName": "Reference Cultivar", "nonce": "0".repeat(64) },
+            "fieldSchema": "9dd68c656b770881cad6e2be6dfc04a9b495fb90d83b78a8b295a425a7690861",
+            "fieldSetRoot": "bcc7a07c54b73978c378b1056f52c7fb34fa7a92f85470d7f8c33f15f8758dec"
+        })
+    }
+
+    #[test]
+    fn a_fields_record_binds_its_field_set() {
+        // conformance/vectors.json, "a sha256/fields/v1 record binds its field set".
+        assert_eq!(
+            compute_commitment(&fields_record()).unwrap(),
+            "afb6bcdecc4c3cb7a17389d2fc0eea664ff43277209a359d048a355f4f599a9f"
+        );
+    }
+
+    #[test]
+    fn a_fields_record_without_a_lowercase_binding_is_refused() {
+        let mut no_root = fields_record();
+        no_root.as_object_mut().unwrap().remove("fieldSetRoot");
+        assert_eq!(
+            compute_commitment(&no_root),
+            Err(CanonicalError::InvalidFieldBinding { field: "fieldSetRoot" })
+        );
+
+        let mut upper = fields_record();
+        upper["fieldSetRoot"] = json!(upper["fieldSetRoot"].as_str().unwrap().to_uppercase());
+        assert!(compute_commitment(&upper).is_err());
+
+        let mut no_schema = fields_record();
+        no_schema.as_object_mut().unwrap().remove("fieldSchema");
+        assert_eq!(
+            compute_commitment(&no_schema),
+            Err(CanonicalError::InvalidFieldBinding { field: "fieldSchema" })
+        );
+    }
+
+    #[test]
+    fn the_field_schema_is_committed_under_either_algorithm() {
+        let mut a = fields_record();
+        a["commitmentAlgorithm"] = json!("sha256/canonical-json/v1");
+        let mut b = a.clone();
+        b["fieldSchema"] = json!("0".repeat(64));
+        assert_ne!(compute_commitment(&a).unwrap(), compute_commitment(&b).unwrap());
     }
 
     // ---- inclusion proofs ----

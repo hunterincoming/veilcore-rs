@@ -11,7 +11,9 @@
 
 use std::io::Read;
 use serde_json::{json, Value};
-use veilcore_records::{attestation_payload, canonicalise, compute_commitment, fold_path, ProofStep, MAX_PROOF_DEPTH};
+use veilcore_records::{
+    attestation_payload, canonicalise, compute_commitment, field_set_summary, fold_path, ProofStep, MAX_PROOF_DEPTH,
+};
 
 fn main() {
     let mut input = String::new();
@@ -54,6 +56,16 @@ fn main() {
                 json!({ "result": fold_path(commitment, &path) })
             }
         }
+        // Field sets (spec 4.5). The summary is written as text rather than through a
+        // serde_json map, which would sort its keys: the runner compares the text, and the
+        // vectors fix the key order.
+        Some("fieldSet") => match field_set_summary(&job["input"]) {
+            Ok(s) => {
+                println!("{{\"result\":{}}}", s.to_json());
+                return;
+            }
+            Err(e) => json!({ "error": e.to_string(), "rejected": true }),
+        },
         other => json!({ "error": format!("unknown op {:?}", other) }),
     };
 
