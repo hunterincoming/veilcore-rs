@@ -1,15 +1,18 @@
 //! Field sets: commitment algorithm `sha256/fields/v1`, per specification section 4.5.
 //!
-//! A record sealed this way commits each of 16 slots as a salted leaf under a root, and
+//! A record sealed this way commits each of 16 slots as a salted leaf under one root, and
 //! binds that root into the record commitment. A holder can later prove one fact about
 //! one slot - that it holds a value, that a number meets a bound - without disclosing the
 //! rest. The proofs run on Midnight; everything here is plain SHA-256, so sealing a field
 //! set and checking a commitment needs nothing else.
 //!
-//! Every hash is SHA-256 over a sequence of 32-byte elements, the first of which is a
-//! domain tag: an ASCII string right-padded with zero bytes to 32. That is the shape
-//! Compact's `persistentHash` takes, which is what lets the claims contract recompute
-//! the same values in-circuit.
+//! Most hashes are SHA-256 over a sequence of 32-byte elements, the first of which is a
+//! domain tag: an ASCII string right-padded with zero bytes to 32. A leaf is SHA-256 of
+//! the value and a 23-byte salt (55 bytes, one block) and the set root is SHA-256 of a
+//! 16-byte tag, the schema id and the 16 leaves (560 bytes); no other hash takes those
+//! lengths. Compact's `persistentHash` hashes exactly these byte strings, which is what
+//! lets the claims contract recompute the same values in-circuit, and the layout keeps
+//! the in-circuit cost low enough to prove on an ordinary computer.
 
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -23,8 +26,8 @@ pub const FIELDS_ALGORITHM: &str = "sha256/fields/v1";
 /// Every field set has exactly this many slots.
 pub const FIELD_SLOTS: usize = 16;
 
-/// The depth of the slot tree: 16 leaves, 4 levels.
-const TREE_DEPTH: usize = 4;
+/// A slot salt: the first 23 bytes of `H("veilcore:v1:fsalt", fieldSecret, slot)`.
+pub type Salt = [u8; 23];
 
 /// One element: a slot value, a salt, a node, a root.
 pub type Bytes32 = [u8; 32];
@@ -336,8 +339,18 @@ pub fn comparable_mask(schema: &Value) -> Result<[bool; FIELD_SLOTS], FieldError
     Ok(schema_masks(schema)?.comparable)
 }
 
-/// `schemaId = H("veilcore:v1:fschema", SHA-256(canonical schema), comparable mask,
-/// count(k), numeric mask)`.
+/// The schema's terms in one 32-byte element: the comparable mask in bytes 0-1 and the
+/// numeric mask in bytes 2-3 (slot i is bit i, little-endian), k in byte 4, the rest zero.
+pub fn schema_terms_bytes(comparable: &[bool; FIELD_SLOTS], numeric: &[bool; FIELD_SLOTS], k: u8) -> Bytes32 {
+    let mask = |m: &[bool; FIELD_SLOTS]| m.iter().enumerate().fold(0u16, |acc, (i, &b)| if b { acc | 1 << i } else { acc });
+    let mut out = [0u8; 32];
+    out[0..2].copy_from_slice(&mask(comparable).to_le_bytes());
+    out[2..4].copy_from_slice(&mask(numeric).to_le_bytes());
+    out[4] = k;
+    out
+}
+
+/// `schemaId = H("veilcore:v1:fschema", SHA-256(canonical schema), terms)`.
 ///
 /// The masks and k are hashed in alongside the document so a claim cannot choose them,
 /// and the numeric mask lets the claims contract refuse a range claim on a slot that is
@@ -345,41 +358,47 @@ pub fn comparable_mask(schema: &Value) -> Result<[bool; FIELD_SLOTS], FieldError
 pub fn field_schema_id(schema: &Value) -> Result<Bytes32, FieldError> {
     let masks = schema_masks(schema)?;
     let k = match schema.get("k").and_then(json_integer) {
-        Some(k) if (1..=FIELD_SLOTS as i128).contains(&k) => k as u64,
+        Some(k) if (1..=FIELD_SLOTS as i128).contains(&k) => k as u8,
         _ => return Err(FieldError::new("k is 1 to 16")),
     };
-    if (masks.comparable.iter().filter(|&&b| b).count() as u64) < k {
+    if masks.comparable.iter().filter(|&&b| b).count() < k as usize {
         return Err(FieldError::new("k is more than the number of comparable slots"));
     }
     Ok(hash_elements(&[
         &tag("veilcore:v1:fschema"),
         &schema_document_digest(schema)?,
-        &mask_slot_value(&masks.comparable),
-        &count_bytes(k),
-        &mask_slot_value(&masks.numeric),
+        &schema_terms_bytes(&masks.comparable, &masks.numeric, k),
     ]))
 }
 
-// ---- the tree ----
+// ---- leaves and root ----
 
-/// `H("veilcore:v1:fsalt", fieldSecret, slot)`.
-pub fn field_salt(field_secret: &Bytes32, slot: usize) -> Bytes32 {
-    hash_elements(&[&tag("veilcore:v1:fsalt"), field_secret, &count_bytes(slot as u64)])
+/// The first 23 bytes of `H("veilcore:v1:fsalt", fieldSecret, slot)`.
+pub fn field_salt(field_secret: &Bytes32, slot: usize) -> Salt {
+    let h = hash_elements(&[&tag("veilcore:v1:fsalt"), field_secret, &count_bytes(slot as u64)]);
+    let mut out = [0u8; 23];
+    out.copy_from_slice(&h[..23]);
+    out
 }
 
-/// `H("veilcore:v1:field", value, salt)`.
-pub fn field_leaf(value: &Bytes32, salt: &Bytes32) -> Bytes32 {
-    hash_elements(&[&tag("veilcore:v1:field"), value, salt])
+/// `SHA-256(value || salt)`: 55 bytes, one SHA-256 block.
+pub fn field_leaf(value: &Bytes32, salt: &Salt) -> Bytes32 {
+    let mut b = [0u8; 55];
+    b[..32].copy_from_slice(value);
+    b[32..].copy_from_slice(salt);
+    sha256(&b)
 }
 
-/// `H("veilcore:v1:fnode", left, right)`.
-pub fn field_node(l: &Bytes32, r: &Bytes32) -> Bytes32 {
-    hash_elements(&[&tag("veilcore:v1:fnode"), l, r])
-}
-
-/// `H("veilcore:v1:fset", schemaId, tree root)`.
-pub fn field_set_root(schema_id: &Bytes32, tree: &Bytes32) -> Bytes32 {
-    hash_elements(&[&tag("veilcore:v1:fset"), schema_id, tree])
+/// `SHA-256("veilcore:v1:fset" || schemaId || leaf_0 || ... || leaf_15)`: the tag is those
+/// 16 ASCII bytes, unpadded, so the input is 560 bytes.
+pub fn field_set_root_from_leaves(schema_id: &Bytes32, leaves: &[Bytes32; FIELD_SLOTS]) -> Bytes32 {
+    let mut b = Vec::with_capacity(560);
+    b.extend_from_slice(b"veilcore:v1:fset");
+    b.extend_from_slice(schema_id);
+    for l in leaves {
+        b.extend_from_slice(l);
+    }
+    sha256(&b)
 }
 
 /// `H("veilcore:v1:frecord", fieldSetRoot, SHA-256 of the canonical committed fields)`.
@@ -392,7 +411,7 @@ pub fn field_record_commitment(set_root: &Bytes32, json_digest: &Bytes32) -> Byt
 pub struct FieldSet {
     pub schema_id: Bytes32,
     pub values: [Bytes32; FIELD_SLOTS],
-    pub salts: [Bytes32; FIELD_SLOTS],
+    pub salts: [Salt; FIELD_SLOTS],
 }
 
 /// Seal 16 slot values under a schema.
@@ -405,61 +424,43 @@ pub fn seal_field_set(schema_id: Bytes32, values: [Bytes32; FIELD_SLOTS], field_
     FieldSet { schema_id, values, salts }
 }
 
-/// Every level of the tree, leaves first, root last.
-fn levels(fs: &FieldSet) -> Vec<Vec<Bytes32>> {
-    let mut out: Vec<Vec<Bytes32>> =
-        vec![fs.values.iter().zip(&fs.salts).map(|(v, s)| field_leaf(v, s)).collect()];
-    while out[out.len() - 1].len() > 1 {
-        let next = out[out.len() - 1].chunks(2).map(|p| field_node(&p[0], &p[1])).collect();
-        out.push(next);
-    }
-    out
+/// The 16 leaves. Each reveals nothing about its value without its salt.
+pub fn field_leaves_of(fs: &FieldSet) -> [Bytes32; FIELD_SLOTS] {
+    std::array::from_fn(|i| field_leaf(&fs.values[i], &fs.salts[i]))
 }
 
 /// The public root of a field set. Reveals nothing about the values.
 pub fn field_set_root_of(fs: &FieldSet) -> Bytes32 {
-    field_set_root(&fs.schema_id, &levels(fs)[TREE_DEPTH][0])
+    field_set_root_from_leaves(&fs.schema_id, &field_leaves_of(fs))
 }
 
-/// One slot, opened: what the claims contract needs to prove a value or a range.
-///
-/// `siblings` and `bits` run from the leaf to the root. A set bit means the node being
-/// folded is the RIGHT child, so its sibling is on the left.
+/// One slot, opened: its value and salt, and all 16 leaves. The other 15 are salted
+/// hashes and disclose nothing about their values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SlotOpening {
+    pub slot: usize,
     pub value: Bytes32,
-    pub salt: Bytes32,
-    pub siblings: [Bytes32; TREE_DEPTH],
-    pub bits: [bool; TREE_DEPTH],
+    pub salt: Salt,
+    pub leaves: [Bytes32; FIELD_SLOTS],
 }
 
 pub fn open_field_slot(fs: &FieldSet, slot: usize) -> Result<SlotOpening, FieldError> {
     if slot >= FIELD_SLOTS {
         return Err(FieldError::new("slot is 0 to 15"));
     }
-    let lv = levels(fs);
-    let mut siblings = [[0u8; 32]; TREE_DEPTH];
-    let mut bits = [false; TREE_DEPTH];
-    let mut i = slot;
-    for level in 0..TREE_DEPTH {
-        bits[level] = i & 1 == 1;
-        siblings[level] = lv[level][i ^ 1];
-        i >>= 1;
-    }
-    Ok(SlotOpening { value: fs.values[slot], salt: fs.salts[slot], siblings, bits })
+    Ok(SlotOpening { slot, value: fs.values[slot], salt: fs.salts[slot], leaves: field_leaves_of(fs) })
 }
 
 /// Recompute the set root from one opened slot (what a verifier of an opening does).
-pub fn root_from_opening(schema_id: &Bytes32, o: &SlotOpening) -> Bytes32 {
-    let mut h = field_leaf(&o.value, &o.salt);
-    for level in 0..TREE_DEPTH {
-        h = if o.bits[level] {
-            field_node(&o.siblings[level], &h)
-        } else {
-            field_node(&h, &o.siblings[level])
-        };
+/// Refused when the value and salt do not make that slot's leaf.
+pub fn root_from_opening(schema_id: &Bytes32, o: &SlotOpening) -> Result<Bytes32, FieldError> {
+    if o.slot >= FIELD_SLOTS {
+        return Err(FieldError::new("slot is 0 to 15"));
     }
-    field_set_root(schema_id, &h)
+    if field_leaf(&o.value, &o.salt) != o.leaves[o.slot] {
+        return Err(FieldError::new("the opened value and salt do not make that slot's leaf"));
+    }
+    Ok(field_set_root_from_leaves(schema_id, &o.leaves))
 }
 
 /// Check a holder's private field set against a record: same schema, same root.
@@ -536,14 +537,6 @@ pub fn typed_slot_values(schema: &Value, values: &[Value]) -> Result<[Bytes32; F
     Ok(out)
 }
 
-/// One opened slot as the conformance vectors report it.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OpeningSummary {
-    pub slot: usize,
-    pub siblings: [Bytes32; TREE_DEPTH],
-    pub bits: [bool; TREE_DEPTH],
-}
-
 /// Everything public or checkable about a sealed field set: what the conformance
 /// vectors compare across implementations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -551,49 +544,35 @@ pub struct FieldSetSummary {
     pub schema_document_digest: Bytes32,
     pub schema_id: Bytes32,
     pub slot_values: [Bytes32; FIELD_SLOTS],
-    pub salts: [Bytes32; FIELD_SLOTS],
+    pub salts: [Salt; FIELD_SLOTS],
+    pub leaves: [Bytes32; FIELD_SLOTS],
     pub set_root: Bytes32,
-    pub openings: Vec<OpeningSummary>,
 }
 
 impl FieldSetSummary {
     /// The summary as JSON, keys in the order the vectors use: schemaDocumentDigest,
-    /// schemaId, slotValues, salts, setRoot, openings. Written by hand because a
-    /// serde_json map sorts its keys, and the runner compares the text.
+    /// schemaId, slotValues, salts, leaves, setRoot. Written by hand because a serde_json
+    /// map sorts its keys, and the runner compares the text.
     pub fn to_json(&self) -> String {
-        let list = |xs: &[Bytes32]| {
-            let items: Vec<String> = xs.iter().map(|x| format!("\"{}\"", hex(x))).collect();
+        fn list<T: AsRef<[u8]>>(xs: &[T]) -> String {
+            let items: Vec<String> = xs.iter().map(|x| format!("\"{}\"", hex(x.as_ref()))).collect();
             format!("[{}]", items.join(","))
-        };
-        let openings: Vec<String> = self
-            .openings
-            .iter()
-            .map(|o| {
-                let bits: Vec<&str> = o.bits.iter().map(|&b| if b { "true" } else { "false" }).collect();
-                format!(
-                    "{{\"slot\":{},\"siblings\":{},\"bits\":[{}]}}",
-                    o.slot,
-                    list(&o.siblings),
-                    bits.join(",")
-                )
-            })
-            .collect();
+        }
         format!(
-            "{{\"schemaDocumentDigest\":\"{}\",\"schemaId\":\"{}\",\"slotValues\":{},\"salts\":{},\"setRoot\":\"{}\",\"openings\":[{}]}}",
+            "{{\"schemaDocumentDigest\":\"{}\",\"schemaId\":\"{}\",\"slotValues\":{},\"salts\":{},\"leaves\":{},\"setRoot\":\"{}\"}}",
             hex(&self.schema_document_digest),
             hex(&self.schema_id),
             list(&self.slot_values),
             list(&self.salts),
+            list(&self.leaves),
             hex(&self.set_root),
-            openings.join(",")
         )
     }
 }
 
 /// Seal typed values under a schema and report the summary.
 ///
-/// Input: `{"schema":{...}, "values":[16 typed values], "fieldSecret":"<64 hex>",
-/// "open":[slot, ...]}`, `open` optional.
+/// Input: `{"schema":{...}, "values":[16 typed values], "fieldSecret":"<64 hex>"}`.
 pub fn field_set_summary(input: &Value) -> Result<FieldSetSummary, FieldError> {
     let typed = match input.get("values").and_then(Value::as_array) {
         Some(v) if v.len() == FIELD_SLOTS => v,
@@ -610,28 +589,13 @@ pub fn field_set_summary(input: &Value) -> Result<FieldSetSummary, FieldError> {
     let values = typed_slot_values(schema, typed)?;
     let fs = seal_field_set(schema_id, values, &secret);
 
-    let requested: &[Value] = match input.get("open") {
-        None | Some(Value::Null) => &[],
-        Some(Value::Array(a)) => a,
-        Some(_) => return Err(FieldError::new("open is a list of slots")),
-    };
-    let mut openings = Vec::with_capacity(requested.len());
-    for r in requested {
-        let slot = match json_integer(r) {
-            Some(i) if (0..FIELD_SLOTS as i128).contains(&i) => i as usize,
-            _ => return Err(FieldError::new("slot is 0 to 15")),
-        };
-        let o = open_field_slot(&fs, slot)?;
-        openings.push(OpeningSummary { slot, siblings: o.siblings, bits: o.bits });
-    }
-
     Ok(FieldSetSummary {
         schema_document_digest: schema_document_digest(schema)?,
         schema_id,
         slot_values: fs.values,
         salts: fs.salts,
+        leaves: field_leaves_of(&fs),
         set_root: field_set_root_of(&fs),
-        openings,
     })
 }
 
@@ -644,7 +608,7 @@ mod tests {
     const SCHEMA: &str = r#"{"id":"veilcore/fields/plant-variety-dus-example/v1","title":"EXAMPLE field schema: 12 SSR loci and four traits for a plant variety","status":"example only, not adopted by any body; a real schema names the crop and marker panel, and takes k from the examining body's guidance","note":"Paths name the holder's private `fields` object. A value in a field set shall not also appear in the record's committed JSON, or disclosing the JSON would disclose it.","slots":[{"slot":0,"path":"fields.loci[0]","type":"text","format":"allele-pair","comparable":true},{"slot":1,"path":"fields.loci[1]","type":"text","format":"allele-pair","comparable":true},{"slot":2,"path":"fields.loci[2]","type":"text","format":"allele-pair","comparable":true},{"slot":3,"path":"fields.loci[3]","type":"text","format":"allele-pair","comparable":true},{"slot":4,"path":"fields.loci[4]","type":"text","format":"allele-pair","comparable":true},{"slot":5,"path":"fields.loci[5]","type":"text","format":"allele-pair","comparable":true},{"slot":6,"path":"fields.loci[6]","type":"text","format":"allele-pair","comparable":true},{"slot":7,"path":"fields.loci[7]","type":"text","format":"allele-pair","comparable":true},{"slot":8,"path":"fields.loci[8]","type":"text","format":"allele-pair","comparable":true},{"slot":9,"path":"fields.loci[9]","type":"text","format":"allele-pair","comparable":true},{"slot":10,"path":"fields.loci[10]","type":"text","format":"allele-pair","comparable":true},{"slot":11,"path":"fields.loci[11]","type":"text","format":"allele-pair","comparable":true},{"slot":12,"path":"fields.germinationPercent","type":"uint","scale":100,"unit":"percent"},{"slot":13,"path":"fields.purityPercent","type":"uint","scale":100,"unit":"percent"},{"slot":14,"path":"fields.varietyName","type":"text"},{"slot":15,"path":"fields.yieldKgPerHa","type":"uint","scale":1,"unit":"kg/ha"}],"k":3}"#;
 
     /// conformance/vectors.json fieldSets[0].expected, verbatim.
-    const FIRST_VECTOR: &str = r#"{"schemaDocumentDigest":"385c5055fc315e4dd20566abda6a79709d22dcfe2a0e96e240cdcb15fd10b223","schemaId":"53304a427e34f78ebbb162464ca1a2fe67a51ed70b28ac2f1a61bee19c37d754","slotValues":["a70dfed1d20bc248a82f687043bf842ff3e8450e4face9a1b4a73354b87ad4b6","10579c4c91c494b285b2417e68ed12c873b9d0389dc01d8d38315f683500de50","0eb2c9301347120ba0f0f7a41bcea892b1472431f3420d7d50bff1529d0bbc82","37da373c58b805b2459a6e8a94886a37158d9fb329df201cd7e52e87c9ba21a1","53fea90639640594be768ad931f128ac7100c894531eb9f2f69abe79a33dfa73","9361c2085e721f3a61b699c233b488d0652216afa2ee0d51c01322a6d1104516","90b3f983db40984723e059d544061e323eff55d5b81205383630a9b0068b64e3","b87281da2638775719aeeed1c9995c30141895b7bfdb320e1954295d9b4c59a6","2f8d90b3bbb7acdc26027eabdc828310df2387dc9da5528ab2022dfb1aeb0d1f","2da1e2c4855358a6faf21f046083a33c4a1b15b343a14fbc373887886d1932ac","4e6a61d8baafd7042e9d1b31ead836d023375e61efc9202971d4fb62541b06ea","fc6144d28fc3a540ad6cd21c00e87303a9aff664c497f7e32931583851596247","b225000000000000010000000000000000000000000000000000000000000000","fc26000000000000010000000000000000000000000000000000000000000000","7774ad14e6e1de7ddea14d6c0e443173f408ed12fd04e91c259d9c8b9a131ff2","0019000000000000010000000000000000000000000000000000000000000000"],"salts":["05177a4d698cefc094277881301d6052b45ef07252d013796a109e9ce94758b2","12ae01188b7ee74a73111e9deef3b8b3c1e8ff8e09ccc92a4e37eab8861feec9","1eba963044069ce2677d14c30f258becbc66df2d388578ad910e9bb3d049be0f","3410be0c50c014f465d9c08710ed8c1270219c77e87ee2751d15e1a090db6e02","aa7bd08038416a2195c43247b6f7fb06af310de2d4697173922913f62f4b3898","73c1a1d6b0c6541c596e658a2d3d1fe27c85a0c879d51db76ea596dc263d9a7b","c35b5a91e9da9d9ce0f6f94e014eb1004ba03d3512b050a5c611b4e4e1768daa","eb50f397b1bf77e16950c2ddf925153521de562665cb8c6d39767956777ebf7a","3759af9e38defb05962766ff635f4e4a284e447d9b60594ed4aeef268d0edfc3","e8454f1912311c505d9c21db038d7a22137dd7daea625fbd0c96f19d84dfbbf5","1fc229d4af3ffcc44f96c2490f521d553633e835604dc544b3dd91c4e2a2b88a","add98991cf4ffa72da510b1f32ee297dc23ebe90991a4583152406231e8db32c","ae27b23ad0f0641df99060c7690e0489a6784c61a47f60627d49d0b48309d04a","85841a2ec8aad9fe070dd399c83da7aaad8e3d6c6bf6bf2b822896dbdb969792","916e7627a6a806ff90bbb54dcb4f3d7740812d8634257ac5fc045d28b4876ff9","a0ffed7125631f1421c916a84ad727f183f202ae43c29dfd6f38ee0f672ae2f2"],"setRoot":"c2d318520d0c3273ac0dae976dbeeece5b81adf841bf09b894cb42feec141b17","openings":[{"slot":3,"siblings":["a9bf65ca4d6f527e7df4a2cc25ea9abe62a22b21f00a87711be4ec276f3f8b29","2ca62b36834ff43c88c1de28b543ea863f297ba025af2bf79a70b84e526f9c27","f72bc244a43ce77e9f3f64a7ae0f8737d93da6d3dcc2d05959e22e52da406680","20b874440b0b914a480ad8b2f04c13c053d48f7593856036e0fa3680599b99b4"],"bits":[true,true,false,false]},{"slot":12,"siblings":["7f330dd8c8bb3c5ebbec9fcd2d1fbb7ef264729a8eaed2f5ab987d047d13884f","032847391f830b60c55eae87f0e4369a3df01d44036d5eeef6da41417e1176e8","3e207ea25bd86009c31b229cacb858238a5a052de6e3121482ec668c5109e031","3c8310cff5db406aa52178b7b5c952e6977a6036ffcf187a2295cd2e483e348f"],"bits":[false,false,true,true]},{"slot":15,"siblings":["2541a025d1732b434bf59fc9f88ecae96c159da6aa0d13585872fe2c9019c37d","f800efde4dbbb4901dbdd87e8655b60c6d083b7fbb42b4a4a65c13af87d65288","3e207ea25bd86009c31b229cacb858238a5a052de6e3121482ec668c5109e031","3c8310cff5db406aa52178b7b5c952e6977a6036ffcf187a2295cd2e483e348f"],"bits":[true,true,true,true]}]}"#;
+    const FIRST_VECTOR: &str = r#"{"schemaDocumentDigest":"385c5055fc315e4dd20566abda6a79709d22dcfe2a0e96e240cdcb15fd10b223","schemaId":"875d8a6c21137ec1aae6d2c8ad6b929c4ef53b09a247a834f39b126dc910f5f9","slotValues":["a70dfed1d20bc248a82f687043bf842ff3e8450e4face9a1b4a73354b87ad4b6","10579c4c91c494b285b2417e68ed12c873b9d0389dc01d8d38315f683500de50","0eb2c9301347120ba0f0f7a41bcea892b1472431f3420d7d50bff1529d0bbc82","37da373c58b805b2459a6e8a94886a37158d9fb329df201cd7e52e87c9ba21a1","53fea90639640594be768ad931f128ac7100c894531eb9f2f69abe79a33dfa73","9361c2085e721f3a61b699c233b488d0652216afa2ee0d51c01322a6d1104516","90b3f983db40984723e059d544061e323eff55d5b81205383630a9b0068b64e3","b87281da2638775719aeeed1c9995c30141895b7bfdb320e1954295d9b4c59a6","2f8d90b3bbb7acdc26027eabdc828310df2387dc9da5528ab2022dfb1aeb0d1f","2da1e2c4855358a6faf21f046083a33c4a1b15b343a14fbc373887886d1932ac","4e6a61d8baafd7042e9d1b31ead836d023375e61efc9202971d4fb62541b06ea","fc6144d28fc3a540ad6cd21c00e87303a9aff664c497f7e32931583851596247","b225000000000000010000000000000000000000000000000000000000000000","fc26000000000000010000000000000000000000000000000000000000000000","7774ad14e6e1de7ddea14d6c0e443173f408ed12fd04e91c259d9c8b9a131ff2","0019000000000000010000000000000000000000000000000000000000000000"],"salts":["05177a4d698cefc094277881301d6052b45ef07252d013","12ae01188b7ee74a73111e9deef3b8b3c1e8ff8e09ccc9","1eba963044069ce2677d14c30f258becbc66df2d388578","3410be0c50c014f465d9c08710ed8c1270219c77e87ee2","aa7bd08038416a2195c43247b6f7fb06af310de2d46971","73c1a1d6b0c6541c596e658a2d3d1fe27c85a0c879d51d","c35b5a91e9da9d9ce0f6f94e014eb1004ba03d3512b050","eb50f397b1bf77e16950c2ddf925153521de562665cb8c","3759af9e38defb05962766ff635f4e4a284e447d9b6059","e8454f1912311c505d9c21db038d7a22137dd7daea625f","1fc229d4af3ffcc44f96c2490f521d553633e835604dc5","add98991cf4ffa72da510b1f32ee297dc23ebe90991a45","ae27b23ad0f0641df99060c7690e0489a6784c61a47f60","85841a2ec8aad9fe070dd399c83da7aaad8e3d6c6bf6bf","916e7627a6a806ff90bbb54dcb4f3d7740812d8634257a","a0ffed7125631f1421c916a84ad727f183f202ae43c29d"],"leaves":["28947e9756e75371b854b892cf4dc29e11a5c6e6284139ad0230613bbd716b35","ef86d387b09aeb0e7aa3dc014c3686de41ea54caf33f3cce2c8065f42b6b19bc","8f765b6b045c0ce5c6a5a5d1186826bbe5b7c27afc97895710b983c29eff924f","0fef5178cc0279d5df1fe9b125c2a81cf633f2a01bb890d8e1618c5ad5ec9353","f13aa5655dd6f8e7efb8296dccf305f87a1e53124c2f75a51a61549b41f1c15c","d2ef841a20f8469a3d2a82e8930bfd75fcd6331e52b84e5ea3bc7b8c46c10ba9","856a6d31a25caef607dd7c7234612ec218e52db69b07f76ad6514355628443a9","c7f19fadd00560e3d9e36f8d21892a846f8a98f4164a4bd9dd13c36d0c53d8ca","5bc0843c1ce6f13adcaa0d50d18bf1a46db5da23b607ee0525d453435c95aaa4","c7f39495dc244fb87db0fdc0259bade476de6a34d6a66a4ab47fb0981b9f4720","481055df8021f8bcfdc8c2daa37d5a20dfc906fc1133735753948d7f12db9e24","401a7ec96f92e3c8b65ab82a145bd64bf5815972883598956f6c5882dd1804fa","d9be56bf324b03041c47ea0fb5dd79d5ece5f417383679631b1bb2c1eda76586","933b790ef5acca37c57f0213920346490b70364dfff792fcde48638c081ed8ab","22ab0200fb7f77b9c3929ff5ac17feb9248c963368ff92b089e3d5d4542e1a2e","fc6453eb4d78616c9e902ab18618c2e1af4d5fb59c0349264c2e73b457cc5db4"],"setRoot":"784e7567d56ae3b96c69156a8bf35138d878c8efd1ac6976ee748da8cb22d823"}"#;
 
     fn schema() -> Value {
         serde_json::from_str(SCHEMA).unwrap()
@@ -659,8 +623,7 @@ mod tests {
                 {"text":"260/264"},{"text":"175/175"},{"text":"290/290"},{"text":"133/137"},
                 {"uint":"9650"},{"uint":"9980"},{"text":"Harbour Mist"},{"uint":"6400"}
             ],
-            "fieldSecret": "1".repeat(64),
-            "open": [3, 12, 15]
+            "fieldSecret": "1".repeat(64)
         })
     }
 
@@ -679,7 +642,14 @@ mod tests {
         let fs = seal_field_set(s.schema_id, s.slot_values, &[0x11; 32]);
         for slot in 0..FIELD_SLOTS {
             let o = open_field_slot(&fs, slot).unwrap();
-            assert_eq!(root_from_opening(&s.schema_id, &o), s.set_root);
+            assert_eq!(root_from_opening(&s.schema_id, &o), Ok(s.set_root));
+            // A wrong value, or another slot's leaf in its place, is refused.
+            let mut wrong = o.clone();
+            wrong.value[0] ^= 1;
+            assert!(root_from_opening(&s.schema_id, &wrong).is_err());
+            let mut moved = o.clone();
+            moved.slot = (slot + 1) % FIELD_SLOTS;
+            assert!(root_from_opening(&s.schema_id, &moved).is_err());
         }
     }
 
@@ -712,7 +682,7 @@ mod tests {
         );
         assert_eq!(
             hex(&field_schema_id(&schema()).unwrap()),
-            "53304a427e34f78ebbb162464ca1a2fe67a51ed70b28ac2f1a61bee19c37d754"
+            "875d8a6c21137ec1aae6d2c8ad6b929c4ef53b09a247a834f39b126dc910f5f9"
         );
     }
 
@@ -766,10 +736,6 @@ mod tests {
         let mut bad_comparable = first_input();
         bad_comparable["schema"]["slots"][0]["comparable"] = json!("yes");
         expect_refused(bad_comparable);
-
-        let mut bad_open = first_input();
-        bad_open["open"] = json!([16]);
-        expect_refused(bad_open);
     }
 
     #[test]
@@ -788,7 +754,6 @@ mod tests {
         let mut i = first_input();
         i["schema"]["slots"].as_array_mut().unwrap().pop(); // slot 15 no longer described
         i["values"][15] = Value::Null;
-        i["open"] = json!([]);
         assert!(field_set_summary(&i).is_ok(), "an undescribed slot may be empty");
         i["values"][15] = json!({"uint":"6400"});
         expect_refused(i);
@@ -799,25 +764,20 @@ mod tests {
         let m = schema_masks(&schema()).unwrap();
         let numeric: Vec<usize> = (0..FIELD_SLOTS).filter(|&i| m.numeric[i]).collect();
         assert_eq!(numeric, vec![12, 13, 15]);
-        // Same document digest, comparable mask and k, but without the numeric mask the
-        // id would be the round-one id; it is not.
+        let terms = schema_terms_bytes(&m.comparable, &m.numeric, 3);
+        // comparable: slots 0-11 (0x0fff); numeric: 12, 13, 15 (0xb000); k = 3.
+        assert_eq!(hex(&terms[..5]), "ff0f00b003");
+        assert!(terms[5..].iter().all(|&b| b == 0));
+        let with = field_schema_id(&schema()).unwrap();
         let without = hash_elements(&[
             &tag("veilcore:v1:fschema"),
             &schema_document_digest(&schema()).unwrap(),
-            &mask_slot_value(&m.comparable),
-            &count_bytes(3),
+            &schema_terms_bytes(&m.comparable, &[false; FIELD_SLOTS], 3),
         ]);
-        let with = field_schema_id(&schema()).unwrap();
         assert_ne!(with, without);
         assert_eq!(
             with,
-            hash_elements(&[
-                &tag("veilcore:v1:fschema"),
-                &schema_document_digest(&schema()).unwrap(),
-                &mask_slot_value(&m.comparable),
-                &count_bytes(3),
-                &mask_slot_value(&m.numeric),
-            ])
+            hash_elements(&[&tag("veilcore:v1:fschema"), &schema_document_digest(&schema()).unwrap(), &terms])
         );
     }
 
