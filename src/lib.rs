@@ -161,7 +161,10 @@ pub fn canonicalise(value: &Value) -> Result<String, CanonicalError> {
             // makes the record invalid. Both were unstated in the specification until an
             // external review in August 2026 pointed out that implementations had each
             // guessed differently.
-            let mut normalised: Vec<(String, &Value)> = Vec::new();
+            let mut normalised: Vec<(String, &Value)> = Vec::with_capacity(map.len());
+            // A set rather than a scan of the list: the scan was quadratic in the number of
+            // keys, so one object with a few hundred thousand keys tied up a verifier.
+            let mut seen: std::collections::HashSet<String> = std::collections::HashSet::with_capacity(map.len());
             for (k, v) in map {
                 if v.is_null() {
                     // Named here because a caller fixing the record wants to know which
@@ -173,7 +176,7 @@ pub fn canonicalise(value: &Value) -> Result<String, CanonicalError> {
                 let n: String = k.nfc().collect();
                 // Any second key normalising to the same value is a collision, whether or
                 // not the originals differ.
-                if normalised.iter().any(|(existing, _)| *existing == n) {
+                if !seen.insert(n.clone()) {
                     return Err(CanonicalError::KeyCollisionAfterNormalisation { key: n });
                 }
                 normalised.push((n, v));
@@ -447,13 +450,32 @@ pub fn fold_path(commitment: &str, path: &[ProofStep]) -> String {
     node
 }
 
+/// Check an inclusion proof's shape, per sections 5.1, 5.2 and 5.4: the commitment and
+/// every sibling are 64 lowercase hex characters, and the path is at most
+/// `MAX_PROOF_DEPTH` steps. Nodes are hashed as hex TEXT, so a sibling of another length
+/// or case is a different preimage, and "01" || left || right stops saying where one
+/// operand ends.
+pub fn check_proof(commitment: &str, path: &[ProofStep]) -> Result<(), &'static str> {
+    if fields::parse_hex32(commitment).is_none() {
+        return Err("a commitment is 64 lowercase hex characters (spec 5.1)");
+    }
+    if path.len() > MAX_PROOF_DEPTH {
+        return Err("proof path exceeds maximum depth (spec 5.4)");
+    }
+    if path.iter().any(|s| fields::parse_hex32(&s.sibling).is_none()) {
+        return Err("each sibling is 64 lowercase hex characters (spec 5.2)");
+    }
+    Ok(())
+}
+
 /// Verify that an inclusion path folds to the root it names.
 ///
 /// Requires no network access: this proves membership in the batch whose root the proof
 /// names. Whether that root was anchored, and when, is a separate lookup - kept separate
-/// so a proof can be checked entirely offline.
+/// so a proof can be checked entirely offline. A malformed proof (see `check_proof`) or
+/// root does not verify.
 pub fn verify_inclusion(commitment: &str, path: &[ProofStep], root: &str) -> bool {
-    if path.len() > MAX_PROOF_DEPTH {
+    if check_proof(commitment, path).is_err() || fields::parse_hex32(root).is_none() {
         return false;
     }
     fold_path(commitment, path) == root
@@ -785,6 +807,31 @@ mod tests {
             })
             .collect();
         assert!(!verify_inclusion(&"b".repeat(64), &path, &"c".repeat(64)));
+    }
+
+    #[test]
+    fn a_malformed_proof_does_not_verify() {
+        let commitment = "b".repeat(64);
+        let sibling = "a".repeat(64);
+        let root = hash_node(&hash_leaf(&commitment), &sibling);
+        let step = |s: &str| vec![ProofStep { sibling: s.to_string(), sibling_is_left: false }];
+        assert!(verify_inclusion(&commitment, &step(&sibling), &root));
+        // Uppercase, short, padded or empty siblings; an uppercase commitment or root.
+        for bad in ["A".repeat(64), "a".repeat(62), format!("{sibling} "), String::new()] {
+            assert!(!verify_inclusion(&commitment, &step(&bad), &root), "{bad:?}");
+        }
+        assert!(!verify_inclusion(&"B".repeat(64), &step(&sibling), &root));
+        assert!(!verify_inclusion(&commitment, &step(&sibling), &root.to_uppercase()));
+        assert!(check_proof("", &[]).is_err());
+    }
+
+    #[test]
+    fn many_keys_are_checked_for_collisions_in_linear_time() {
+        let mut m = serde_json::Map::new();
+        for i in 0..200_000 {
+            m.insert(format!("k{i}"), json!(1));
+        }
+        assert!(canonicalise(&Value::Object(m)).is_ok());
     }
 
     #[test]

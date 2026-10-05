@@ -16,7 +16,7 @@ whoever needs to implement it.
 
     cargo test
 
-Forty of them, and they cover what the format requires an implementation to REFUSE
+Forty-two of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
 schema or slot value, comparable text not in its declared format, a commitment algorithm
@@ -38,6 +38,18 @@ speaks over stdin and stdout, so it drives any implementation in any language, a
 fails rather than skips when one cannot answer an operation — a check that reports nothing is worse than a check that is missing.
 
 ## Changes
+
+**Unreleased** — hardening, no change to any hash or vector:
+
+- `verify_inclusion` now returns `false` unless the commitment, the root and every
+  sibling are 64 lowercase hex characters (spec 5.1, 5.2). New `check_proof` says why.
+- The conformance binary's `fold` op refuses a malformed proof (missing commitment, a
+  step that is not an object, a sibling that is not a string, a flag that is not a
+  boolean). It used to read each as `""` or `false` and fold anyway.
+- Key-collision detection in `canonicalise` is a set lookup rather than a scan, so an
+  object with very many keys no longer takes quadratic time.
+- `unicode-normalization` is pinned to `=0.1.25` (Unicode 17.0.0, the version the vectors
+  were generated with), and `rust-version = "1.71"` is declared (the dependency floor).
 
 **0.3.0** — field sets, commitment algorithm `sha256/fields/v1` (spec 4.5): the
 `fields` module, `fieldSchema` in the committed fields, and the `fieldSet` conformance

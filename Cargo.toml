@@ -2,6 +2,8 @@
 name = "veilcore-records"
 version = "0.3.0"
 edition = "2021"
+# The floor set by serde_json and ryu-js (1.71). Not yet exercised by a CI job on 1.71.
+rust-version = "1.71"
 license = "Apache-2.0"
 description = "A Rust implementation of the VeilCore record format"
 repository = "https://github.com/hunterincoming/veilcore-rs"
@@ -11,5 +13,9 @@ keywords = ["provenance", "records", "commitment", "merkle", "standards"]
 [dependencies]
 sha2 = "0.10"
 serde_json = { version = "1.0", features = ["float_roundtrip"] }
-unicode-normalization = "0.1"
+# Pinned exactly: NFC tables decide hash inputs. 0.1.25 carries Unicode 17.0.0, the version
+# of Node's ICU that produced the conformance vectors (Node 22, ICU 78). A patch release
+# that moves to a newer Unicode can change NFC for newly assigned code points, and a
+# dependent crate would pick it up silently under "0.1". Bump only with the vectors.
+unicode-normalization = "=0.1.25"
 ryu-js = "1.0.3"
