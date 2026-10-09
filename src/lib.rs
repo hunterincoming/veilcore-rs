@@ -15,6 +15,8 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 pub mod fields;
+pub mod pairing;
+pub use pairing::{dna_pair_binding, is_weak_salt, DNA_PAIR_TAG};
 pub use fields::{field_set_summary, FieldError, FieldSet, FieldSetSummary, FIELDS_ALGORITHM, FIELD_SLOTS};
 
 /// Why a record was refused.

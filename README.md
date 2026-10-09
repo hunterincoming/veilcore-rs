@@ -27,19 +27,20 @@ that only agrees on valid input has not been shown to agree.
 
     cargo build --release
 
-    git clone -b fields-v1 https://github.com/hunterincoming/veilcore-sdk
+    git clone https://github.com/hunterincoming/veilcore-sdk
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform"
 
-(Field sets are on veilcore-sdk's `fields-v1` branch until they are released; its `main`
-has the 55 vectors without them.)
-
-Ninety-nine vectors, including field sets (`sha256/fields/v1`, spec 4.5). The runner
-speaks over stdin and stdout, so it drives any implementation in any language, and it
-fails rather than skips when one cannot answer an operation — a check that reports nothing is worse than a check that is missing.
+All 101 vectors, including field sets (`sha256/fields/v1`, spec 4.5) and the report
+pairing (spec 3.7). The runner speaks over stdin and stdout, so it drives any
+implementation in any language, and it fails rather than skips when one cannot answer an
+operation — a check that reports nothing is worse than a check that is missing.
 
 ## Changes
 
-**Unreleased** — hardening, no change to any hash or vector:
+**Unreleased** — a report paired on a ledger (spec 3.7): `dna_pair_binding` computes
+`H("veilcore:v1:dnapair", reportHash, identity, salt)` and the conformance binary answers
+the `dnaPair` op; `is_weak_salt` says whether a salt is one byte value repeated, which
+whoever makes a pairing refuses. Also hardening, no change to any hash or vector:
 
 - `verify_inclusion` now returns `false` unless the commitment, the root and every
   sibling are 64 lowercase hex characters (spec 5.1, 5.2). New `check_proof` says why.

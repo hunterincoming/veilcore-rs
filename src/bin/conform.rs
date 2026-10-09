@@ -12,7 +12,8 @@
 use std::io::Read;
 use serde_json::{json, Value};
 use veilcore_records::{
-    attestation_payload, canonicalise, check_proof, compute_commitment, field_set_summary, fold_path, ProofStep,
+    attestation_payload, canonicalise, check_proof, compute_commitment, dna_pair_binding, field_set_summary, fold_path,
+    ProofStep,
 };
 
 /// Read a fold job strictly. A missing commitment, a step that is not an object, a
@@ -81,6 +82,15 @@ fn main() {
             }
             Err(e) => json!({ "error": e.to_string(), "rejected": true }),
         },
+        // A report paired on a ledger (spec 3.7): the binding the pairing publishes.
+        Some("dnaPair") => {
+            let i = &job["input"];
+            let field = |k: &str| i[k].as_str().unwrap_or("");
+            match dna_pair_binding(field("reportHash"), field("identity"), field("salt")) {
+                Ok(s) => json!({ "result": s }),
+                Err(e) => json!({ "error": e, "rejected": true }),
+            }
+        }
         other => json!({ "error": format!("unknown op {:?}", other) }),
     };
 
