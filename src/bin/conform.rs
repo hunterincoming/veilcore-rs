@@ -12,8 +12,8 @@
 use std::io::Read;
 use serde_json::{json, Value};
 use veilcore_records::{
-    attestation_payload, canonicalise, check_proof, compute_commitment, dna_pair_binding, field_set_summary, fold_path,
-    ProofStep,
+    attestation_payload, binding_for_secret, canonicalise, check_proof, compute_commitment, dna_pair_binding,
+    field_set_summary, fold_path, key_matches_record, record_fingerprint, ProofStep,
 };
 
 /// Read a fold job strictly. A missing commitment, a step that is not an object, a
@@ -90,6 +90,22 @@ fn main() {
                 Ok(s) => json!({ "result": s }),
                 Err(e) => json!({ "error": e, "rejected": true }),
             }
+        }
+        // A record that names its own key (spec 3.6.1): the key from its secret, the
+        // fingerprint of committed fields old and new, and whether a key is the record's.
+        Some("keyFromSecret") => match binding_for_secret(job["input"]["recordSecret"].as_str().unwrap_or("")) {
+            Ok(k) => json!({ "result": { "identity": k.identity, "keySalt": k.key_salt, "keyBinding": k.key_binding } }),
+            Err(e) => json!({ "error": e, "rejected": true }),
+        },
+        Some("recordFingerprint") => match record_fingerprint(&job["input"]) {
+            Ok(r) => json!({ "result": { "algorithm": r.algorithm, "contentHash": r.content_hash, "fingerprint": r.fingerprint } }),
+            Err(e) => json!({ "error": e.to_string(), "rejected": true }),
+        },
+        // Malformed input is a key that does not match, not an error.
+        Some("keyMatch") => {
+            let i = &job["input"];
+            let field = |k: &str| i[k].as_str().unwrap_or("");
+            json!({ "result": key_matches_record(field("identity"), field("fingerprint"), field("keySalt"), field("contentHash")) })
         }
         other => json!({ "error": format!("unknown op {:?}", other) }),
     };

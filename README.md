@@ -16,11 +16,12 @@ whoever needs to implement it.
 
     cargo test
 
-Forty-two of them, and they cover what the format requires an implementation to REFUSE
+Fifty-seven of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
 schema or slot value, comparable text not in its declared format, a commitment algorithm
-name that is not exactly one of the two, a field binding on the wrong algorithm. An implementation
+name that is not exactly one of the two, a field binding on the wrong algorithm, a
+`keyBinding` that is not 64 lowercase hex characters. An implementation
 that only agrees on valid input has not been shown to agree.
 
 ## Conformance
@@ -30,14 +31,27 @@ that only agrees on valid input has not been shown to agree.
     git clone https://github.com/hunterincoming/veilcore-sdk
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform"
 
-All 101 vectors, including field sets (`sha256/fields/v1`, spec 4.5) and the report
-pairing (spec 3.7). The runner speaks over stdin and stdout, so it drives any
+All 121 vectors, including field sets (`sha256/fields/v1`, spec 4.5), the report
+pairing (spec 3.7) and records that name their own key (spec 3.6.1). The runner speaks over stdin and stdout, so it drives any
 implementation in any language, and it fails rather than skips when one cannot answer an
 operation — a check that reports nothing is worse than a check that is missing.
 
 ## Changes
 
-**Unreleased** — a report paired on a ledger (spec 3.7): `dna_pair_binding` computes
+**Unreleased** — a record that names its own key (spec 3.6.1): the `key_binding` module.
+`record_fingerprint` gives the fingerprint of committed fields as given, `sha256/key-bound/v1`
+(`H("veilcore:v1:keyrecord", keyBinding, contentHash)`) when they carry `keyBinding` and,
+unchanged, the content hash when they do not; a `keyBinding` that is present but not 64
+lowercase hex characters is refused with the new `RecordFingerprintError`, a separate type
+so `CanonicalError` keeps its variants. `verify_record_fingerprint` checks an export's
+registered-fingerprint block, `key_matches_record` says whether a key is the one a record
+named, and `identity_from_secret`, `key_salt_of`, `key_binding_of`, `key_bound_fingerprint`
+and `binding_for_secret` make the pieces. The conformance binary answers the
+`keyFromSecret`, `recordFingerprint` and `keyMatch` ops, and `tests/key_bound.rs` runs every
+vector of `tests/vectors/key-bound-v1.json`, a byte-for-byte copy of the file the VeilCore
+web application publishes. Nothing about existing hashes changes.
+
+Also a report paired on a ledger (spec 3.7): `dna_pair_binding` computes
 `H("veilcore:v1:dnapair", reportHash, identity, salt)` and the conformance binary answers
 the `dnaPair` op; `is_weak_salt` says whether a salt is one byte value repeated, which
 whoever makes a pairing refuses. Also hardening, no change to any hash or vector:

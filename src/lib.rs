@@ -15,7 +15,13 @@ use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
 pub mod fields;
+pub mod key_binding;
 pub mod pairing;
+pub use key_binding::{
+    binding_for_secret, identity_from_secret, key_binding_of, key_bound_fingerprint, key_matches_record, key_salt_of,
+    record_fingerprint, verify_record_fingerprint, KeyFromSecret, RecordFingerprint, RecordFingerprintError,
+    KEY_BOUND_ALGORITHM,
+};
 pub use pairing::{dna_pair_binding, is_weak_salt, DNA_PAIR_TAG};
 pub use fields::{field_set_summary, FieldError, FieldSet, FieldSetSummary, FIELDS_ALGORITHM, FIELD_SLOTS};
 
