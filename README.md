@@ -32,13 +32,21 @@ that only agrees on valid input has not been shown to agree.
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform"
 
 All 121 vectors, including field sets (`sha256/fields/v1`, spec 4.5), the report
-pairing (spec 3.7) and records that name their own key (spec 3.6.1). The runner speaks over stdin and stdout, so it drives any
+pairing (spec 3.7) and records that name their own key (spec 3.6.1), and the five animal
+records of spec 11.8 (a draft). This crate doesn't check the animal profile's own form, so
+run the SDK's runner with `--without-animal-profile`: its 25 refusals are then left out, and
+the result says so. The runner speaks over stdin and stdout, so it drives any
 implementation in any language, and it fails rather than skips when one cannot answer an
 operation — a check that reports nothing is worse than a check that is missing.
 
 ## Changes
 
-**Unreleased** — a record that names its own key (spec 3.6.1): the `key_binding` module.
+**Unreleased** — animal records (spec 11.8, a draft): `tests/animal.rs` runs the five
+records of `tests/vectors/animal-individual-v1.json`, a byte-for-byte copy of the file the
+VeilCore web application publishes, through `record_fingerprint`. The profile changes no
+fingerprint rule, so no code changed; checking the profile's form is left to the SDK.
+
+Also a record that names its own key (spec 3.6.1): the `key_binding` module.
 `record_fingerprint` gives the fingerprint of committed fields as given, `sha256/key-bound/v1`
 (`H("veilcore:v1:keyrecord", keyBinding, contentHash)`) when they carry `keyBinding` and,
 unchanged, the content hash when they do not; a `keyBinding` that is present but not 64
