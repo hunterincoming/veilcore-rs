@@ -1,12 +1,16 @@
 # veilcore-records (Rust)
 
-A Rust implementation of the VeilCore record format:
-https://github.com/hunterincoming/veilcore-sdk/blob/main/SPEC.md
+[![conformance](https://github.com/hunterincoming/veilcore-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/hunterincoming/veilcore-rs/actions/workflows/ci.yml)
+· Apache-2.0 · [the specification](https://github.com/hunterincoming/veilcore-sdk/blob/main/SPEC.md)
 
-It passes the same published conformance vectors as the TypeScript and Python
-implementations. All three have the same author, so this shows the vectors hold across
-languages. It does not show that a third party could implement the format from the
-specification alone; that still needs an implementation by someone unrelated.
+A Rust implementation of the VeilCore record format: canonical serialisation, record
+fingerprints (including records that name their own key), inclusion proofs, field sets and
+the report pairing. It passes the same published conformance vectors as the TypeScript and
+Python implementations in [veilcore-sdk](https://github.com/hunterincoming/veilcore-sdk).
+
+All three have the same author, so this shows the vectors hold across languages. It does not
+show that a third party could implement the format from the specification alone; that still
+needs an implementation by someone unrelated.
 
 Dependencies: SHA-256, a JSON parser, Unicode normalisation. Nothing else. A format that
 needs more than that to compute a commitment is a format that cannot be implemented by
@@ -16,7 +20,7 @@ whoever needs to implement it.
 
     cargo test
 
-Fifty-seven of them, and they cover what the format requires an implementation to REFUSE
+Sixty of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
 schema or slot value, comparable text not in its declared format, a commitment algorithm
@@ -31,7 +35,7 @@ that only agrees on valid input has not been shown to agree.
     git clone https://github.com/hunterincoming/veilcore-sdk
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform"
 
-All 121 vectors, including field sets (`sha256/fields/v1`, spec 4.5), the report
+All 121 vectors (126 with the animal records), including field sets (`sha256/fields/v1`, spec 4.5), the report
 pairing (spec 3.7) and records that name their own key (spec 3.6.1), and the five animal
 records of spec 11.8 (a draft). This crate doesn't check the animal profile's own form, so
 run the SDK's runner with `--without-animal-profile`: its 25 refusals are then left out, and
@@ -41,7 +45,7 @@ operation — a check that reports nothing is worse than a check that is missing
 
 ## Changes
 
-**Unreleased** — animal records (spec 11.8, a draft): `tests/animal.rs` runs the five
+**0.4.0** — animal records (spec 11.8, a draft): `tests/animal.rs` runs the five
 records of `tests/vectors/animal-individual-v1.json`, a byte-for-byte copy of the file the
 VeilCore web application publishes, through `record_fingerprint`. The profile changes no
 fingerprint rule, so no code changed; checking the profile's form is left to the SDK.

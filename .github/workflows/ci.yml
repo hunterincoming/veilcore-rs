@@ -1,0 +1,36 @@
+name: conformance
+
+# cargo test, then every conformance vector from veilcore-sdk against the release build of
+# the conformance binary. Nothing is published from here.
+
+on:
+  push:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: The vectors' runner (veilcore-sdk)
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          repository: hunterincoming/veilcore-sdk
+          ref: main
+          path: veilcore-sdk
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "24.11.1"
+      - name: cargo test
+        run: cargo test --locked
+      - name: Build the conformance binary
+        run: cargo build --release --locked
+      - name: Every vector (the animal profile's refusals are left to the SDK)
+        run: node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" --without-animal-profile
