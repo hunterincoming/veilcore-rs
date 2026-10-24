@@ -33,19 +33,21 @@ that only agrees on valid input has not been shown to agree.
     cargo build --release
 
     git clone https://github.com/hunterincoming/veilcore-sdk
-    node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform"
+    node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" \
+      --without-animal-profile --without-strain-profile
 
-All 121 vectors (126 with the animal records), including field sets (`sha256/fields/v1`, spec 4.5), the report
-pairing (spec 3.7) and records that name their own key (spec 3.6.1), and the five animal
-records of spec 11.8 (a draft). This crate doesn't check the animal profile's own form, so
-run the SDK's runner with `--without-animal-profile`: its 25 refusals are then left out, and
-the result says so. The runner speaks over stdin and stdout, so it drives any
+131 vectors pass: all 121 for the record format, including field sets (`sha256/fields/v1`,
+spec 4.5), the report pairing (spec 3.7) and records that name their own key (spec 3.6.1),
+plus the five animal records of spec 11.8 and the five strain and line records of spec 11.9
+(both drafts). This crate computes those records' fingerprints but doesn't check either
+profile's own form, so the two flags above leave out the profiles' 50 refusals, and the
+result says so. The runner speaks over stdin and stdout, so it drives any
 implementation in any language, and it fails rather than skips when one cannot answer an
-operation — a check that reports nothing is worse than a check that is missing.
+operation: a check that reports nothing is worse than a check that is missing.
 
 ## Changes
 
-**0.4.0** — animal records (spec 11.8, a draft): `tests/animal.rs` runs the five
+**0.4.0**: animal records (spec 11.8, a draft): `tests/animal.rs` runs the five
 records of `tests/vectors/animal-individual-v1.json`, a byte-for-byte copy of the file the
 VeilCore web application publishes, through `record_fingerprint`. The profile changes no
 fingerprint rule, so no code changed; checking the profile's form is left to the SDK.
