@@ -32,5 +32,5 @@ jobs:
         run: cargo test --locked
       - name: Build the conformance binary
         run: cargo build --release --locked
-      - name: Every vector (the animal profile's refusals are left to the SDK)
-        run: node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" --without-animal-profile
+      - name: Every vector (the animal and strain profiles' refusals are left to the SDK)
+        run: node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" --without-animal-profile --without-strain-profile
