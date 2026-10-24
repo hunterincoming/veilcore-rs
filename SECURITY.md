@@ -13,4 +13,4 @@ We acknowledge within three business days and send an assessment within a furthe
 and credit reporters unless asked not to.
 
 The VeilCore contract, operator tool and full incident process are covered in
-[veilcore-midnight-testnet](https://github.com/hunterincoming/veilcore-midnight-testnet/blob/main/SECURITY.md).
+[veilcore](https://github.com/hunterincoming/veilcore/blob/main/SECURITY.md).
