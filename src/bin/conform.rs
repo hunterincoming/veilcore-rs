@@ -12,8 +12,9 @@
 use std::io::Read;
 use serde_json::{json, Value};
 use veilcore_records::{
-    attestation_payload, binding_for_secret, canonicalise, check_proof, compute_commitment, dna_pair_binding,
-    field_set_summary, fold_path, key_matches_record, record_fingerprint, ProofStep,
+    attestation_payload, binding_for_secret, canonicalise, check_proof, compute_commitment, dna_mark_seal,
+    dna_pair_binding, document_fingerprint, field_set_summary, fold_path, key_matches_record, lab_binding_problems,
+    lab_name_binding, lab_statement_file, lab_viability_pair_problems, record_fingerprint, HeldResult, ProofStep,
 };
 
 /// Read a fold job strictly. A missing commitment, a step that is not an object, a
@@ -33,6 +34,38 @@ fn read_proof(input: &Value) -> Result<(String, Vec<ProofStep>), String> {
     }
     check_proof(commitment, &path)?;
     Ok((commitment.to_string(), path))
+}
+
+/// `{"result": true}` when nothing stops it, else a refusal giving every reason.
+fn refused_or_true(problems: Vec<String>) -> Value {
+    if problems.is_empty() {
+        json!({ "result": true })
+    } else {
+        json!({ "error": format!("{} (spec 11.12)", problems.join("; ")), "rejected": true })
+    }
+}
+
+/// Read a viability pair job's codes and held results strictly: a code that is not text,
+/// or a held result without a statement and a code, is refused rather than read as "".
+fn read_pair(input: &Value) -> Result<(&str, Option<&str>, Vec<HeldResult<'_>>), String> {
+    let before_code = input["beforeCode"].as_str().ok_or("beforeCode is text")?;
+    let after_code = match input.get("afterCode") {
+        None => None,
+        Some(c) => Some(c.as_str().ok_or("afterCode is text")?),
+    };
+    let held = match input.get("held") {
+        None => Vec::new(),
+        Some(h) => h
+            .as_array()
+            .ok_or("held is a list")?
+            .iter()
+            .map(|h| match (h.get("statement"), h["code"].as_str()) {
+                (Some(statement), Some(code)) => Ok(HeldResult { statement, code }),
+                _ => Err("each held result has a statement and a code".to_string()),
+            })
+            .collect::<Result<_, _>>()?,
+    };
+    Ok((before_code, after_code, held))
 }
 
 fn main() {
@@ -107,6 +140,50 @@ fn main() {
             let field = |k: &str| i[k].as_str().unwrap_or("");
             json!({ "result": key_matches_record(field("identity"), field("fingerprint"), field("keySalt"), field("contentHash")) })
         }
+        // Document records (spec 11.11): the profile's form checked, then the fingerprint.
+        Some("documentFingerprint") => match document_fingerprint(&job["input"]) {
+            Ok(r) => json!({ "result": { "algorithm": r.algorithm, "contentHash": r.content_hash, "fingerprint": r.fingerprint } }),
+            Err(e) => json!({ "error": e.to_string(), "rejected": true }),
+        },
+        // Laboratory results, version 2 (spec 11.12).
+        Some("labStatement") => match lab_statement_file(&job["input"]) {
+            Ok(f) => json!({ "result": { "name": f.name, "sha256": f.sha256, "size": f.size } }),
+            Err(e) => json!({ "error": e.to_string(), "rejected": true }),
+        },
+        Some("labBinding") => {
+            let i = &job["input"];
+            refused_or_true(lab_binding_problems(&i["fields"], &i["statement"], &i["values"], &i["schemas"]))
+        }
+        Some("dnaMarkSeal") => {
+            let i = &job["input"];
+            match (i["sequence"].as_str(), i["salt"].as_str()) {
+                (Some(seq), Some(salt)) => match dna_mark_seal(seq, salt) {
+                    Ok(s) => json!({ "result": s }),
+                    Err(e) => json!({ "error": e.to_string(), "rejected": true }),
+                },
+                _ => json!({ "error": "the sequence and the salt are text", "rejected": true }),
+            }
+        }
+        Some("labNameBinding") => {
+            let i = &job["input"];
+            match (i["key"].as_str(), i["subject"].as_str(), i["salt"].as_str()) {
+                (Some(key), Some(subject), Some(salt)) => match lab_name_binding(key, subject, salt) {
+                    Ok(s) => json!({ "result": s }),
+                    Err(e) => json!({ "error": e.to_string(), "rejected": true }),
+                },
+                _ => json!({ "error": "the key, the subject and the salt are text", "rejected": true }),
+            }
+        }
+        Some("labViabilityPair") => match read_pair(&job["input"]) {
+            Ok((before_code, after_code, held)) => refused_or_true(lab_viability_pair_problems(
+                &job["input"]["after"],
+                &job["input"]["before"],
+                before_code,
+                after_code,
+                &held,
+            )),
+            Err(e) => json!({ "error": e, "rejected": true }),
+        },
         other => json!({ "error": format!("unknown op {:?}", other) }),
     };
 

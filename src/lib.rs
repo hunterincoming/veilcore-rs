@@ -14,9 +14,17 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use unicode_normalization::UnicodeNormalization;
 
+pub mod document;
 pub mod fields;
+mod form;
 pub mod key_binding;
+pub mod lab_result;
 pub mod pairing;
+pub use document::{document_fingerprint, document_problems, DocumentError, DOCUMENT_PROFILE};
+pub use lab_result::{
+    dna_mark_seal, lab_binding_problems, lab_call_values, lab_name_binding, lab_statement_file, lab_statement_problems,
+    lab_viability_pair_problems, HeldResult, LabError, LabStatementFile, LAB_RESULT_FILE_NAME, LAB_RESULT_FORMAT,
+};
 pub use key_binding::{
     binding_for_secret, identity_from_secret, key_binding_of, key_bound_fingerprint, key_matches_record, key_salt_of,
     record_fingerprint, verify_record_fingerprint, KeyFromSecret, RecordFingerprint, RecordFingerprintError,
