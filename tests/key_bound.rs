@@ -3,7 +3,9 @@
 //! `vectors/key-bound-v1.json` is a byte-for-byte copy of the file the VeilCore web
 //! application publishes (its contract/vectors/key-bound-v1.json), which veilcore-sdk's
 //! shared set also carries as its keyBound* sections. It was written with node:crypto and
-//! a canonicaliser only, so this crate is checked against values it did not compute.
+//! a canonicaliser only, so this crate is checked against values it did not compute. Since
+//! veilcore-sdk 0889e4a it carries records with a field set too, whose content hash is the
+//! spec 4.5 commitment, and refusals of a field set that is not whole.
 
 use serde_json::Value;
 use veilcore_records::{
@@ -27,7 +29,7 @@ fn list<'a>(v: &'a Value, k: &str) -> &'a Vec<Value> {
 fn the_vector_file_is_whole() {
     let v = vectors();
     let counts: Vec<usize> = ["keys", "records", "checks", "refusals"].iter().map(|k| list(&v, k).len()).collect();
-    assert_eq!(counts, [2, 4, 9, 5]);
+    assert_eq!(counts, [2, 6, 11, 9]);
     let checks = list(&v, "checks");
     assert!(checks.iter().any(|c| c["matches"] == true) && checks.iter().any(|c| c["matches"] == false));
 }
@@ -79,9 +81,13 @@ fn every_check_a_key_matches_only_the_record_that_named_it() {
 }
 
 #[test]
-fn every_refusal_a_malformed_key_binding_is_refused_not_hashed() {
+fn every_refusal_a_malformed_key_binding_or_field_set_is_refused_not_hashed() {
     for r in list(&vectors(), "refusals") {
-        assert_eq!(record_fingerprint(&r["fields"]), Err(RecordFingerprintError::InvalidKeyBinding), "{}", s(r, "name"));
+        // A well-formed keyBinding leaves the field set as what is wrong (spec 3.6.1, "With a field set").
+        let key_ok = r["fields"]["keyBinding"].as_str().is_some_and(|k| k.len() == 64 && k.bytes().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f')));
+        let expected =
+            if key_ok { RecordFingerprintError::InvalidFieldSet } else { RecordFingerprintError::InvalidKeyBinding };
+        assert_eq!(record_fingerprint(&r["fields"]), Err(expected), "{}", s(r, "name"));
         let registered = serde_json::json!({ "fields": r["fields"], "fingerprint": "ab".repeat(32) });
         assert!(!verify_record_fingerprint(&registered), "{}", s(r, "name"));
     }

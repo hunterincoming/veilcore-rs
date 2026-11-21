@@ -15,11 +15,22 @@
 //! right-padded with zero bytes. Committed fields without `keyBinding` keep
 //! `sha256/canonical-json/v1`: their fingerprint is `contentHash` itself, as before.
 //!
+//! Committed fields that carry a field set (section 4.5: `fieldSchema` and `fieldSetRoot`,
+//! both or neither) take the 4.5 commitment as their content hash instead
+//! (section 3.6.1, "With a field set"):
+//!
+//! ```text
+//! contentHash = H("veilcore:v1:frecord", fieldSetRoot, SHA-256 of the canonical committed fields)
+//! ```
+//!
+//! With no `keyBinding` the fingerprint is that commitment itself, `sha256/fields/v1`.
+//!
 //! A verifier given the fingerprint, an identity, `keySalt` and `contentHash` recomputes the
 //! fingerprint; if it matches, the identity is the key the record named when it was sealed.
 
-use crate::fields::{hash_elements, parse_hex32, Bytes32};
-use crate::{canonicalise, sha256_hex, CanonicalError};
+use crate::fields::{field_record_commitment, hash_elements, parse_hex32, Bytes32, FIELDS_ALGORITHM};
+use crate::{canonicalise, CanonicalError};
+use sha2::{Digest, Sha256};
 use serde_json::Value;
 use std::fmt;
 
@@ -100,6 +111,9 @@ pub enum RecordFingerprintError {
     /// `keyBinding` is present but is not 64 lowercase hex characters (null, a number,
     /// upper case and `0x...` included). Present means sealed, so it is refused, not hashed.
     InvalidKeyBinding,
+    /// Only one of `fieldSchema` and `fieldSetRoot` is present, or either is not 64
+    /// lowercase hex characters (section 3.6.1, "With a field set").
+    InvalidFieldSet,
     /// The fields cannot be canonicalised (section 4.4).
     Canonical(CanonicalError),
 }
@@ -109,6 +123,10 @@ impl fmt::Display for RecordFingerprintError {
         match self {
             Self::NotAnObject => write!(f, "the committed fields are a JSON object"),
             Self::InvalidKeyBinding => write!(f, "keyBinding must be 64 lowercase hex characters (spec 3.6.1)"),
+            Self::InvalidFieldSet => write!(
+                f,
+                "fieldSchema and fieldSetRoot come together, each 64 lowercase hex characters (spec 3.6.1, 4.5)"
+            ),
             Self::Canonical(e) => write!(f, "{e}"),
         }
     }
@@ -119,9 +137,11 @@ impl std::error::Error for RecordFingerprintError {}
 /// A fingerprint of committed fields, with what it was computed from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordFingerprint {
-    /// `sha256/key-bound/v1` when the fields carry `keyBinding`, else `sha256/canonical-json/v1`.
+    /// `sha256/key-bound/v1` when the fields carry `keyBinding`; else `sha256/fields/v1` when
+    /// they carry a field set; else `sha256/canonical-json/v1`.
     pub algorithm: &'static str,
-    /// SHA-256 of the canonical serialisation of the fields (a holder's link carries it as `cd`).
+    /// SHA-256 of the canonical serialisation of the fields (a holder's link carries it as `cd`),
+    /// or, with a field set, the 4.5 commitment over it.
     pub content_hash: String,
     /// `content_hash` itself, or `H(keyrecord, keyBinding, content_hash)`.
     pub fingerprint: String,
@@ -129,9 +149,11 @@ pub struct RecordFingerprint {
 
 /// The fingerprint of committed JSON anchored on its own (section 3.6.1, "Where it
 /// applies"), such as the `fields` of an export's `org.veilcore.registered-fingerprint`
-/// extension. The fields are hashed as given.
+/// extension. The fields are hashed as given. A field set (`fieldSchema` and `fieldSetRoot`)
+/// comes whole or not at all.
 pub fn record_fingerprint(fields: &Value) -> Result<RecordFingerprint, RecordFingerprintError> {
     let obj = fields.as_object().ok_or(RecordFingerprintError::NotAnObject)?;
+    let hex32 = |k: &str| obj.get(k).map(|v| v.as_str().and_then(parse_hex32));
     let binding = match obj.get("keyBinding") {
         None => None,
         Some(v) => Some(
@@ -140,10 +162,20 @@ pub fn record_fingerprint(fields: &Value) -> Result<RecordFingerprint, RecordFin
                 .ok_or(RecordFingerprintError::InvalidKeyBinding)?,
         ),
     };
-    let content_hash = sha256_hex(&canonicalise(fields).map_err(RecordFingerprintError::Canonical)?);
+    let set_root = match (hex32("fieldSchema"), hex32("fieldSetRoot")) {
+        (None, None) => None,
+        (Some(Some(_)), Some(Some(root))) => Some(root),
+        _ => return Err(RecordFingerprintError::InvalidFieldSet),
+    };
+    let canonical = canonicalise(fields).map_err(RecordFingerprintError::Canonical)?;
+    let json_digest: Bytes32 = Sha256::digest(canonical.as_bytes()).into();
+    let content_hash = match &set_root {
+        None => hex(&json_digest),
+        Some(root) => hex(&field_record_commitment(root, &json_digest)),
+    };
     Ok(match binding {
         None => RecordFingerprint {
-            algorithm: CANONICAL_JSON_ALGORITHM,
+            algorithm: if set_root.is_some() { FIELDS_ALGORITHM } else { CANONICAL_JSON_ALGORITHM },
             fingerprint: content_hash.clone(),
             content_hash,
         },
@@ -189,6 +221,7 @@ pub fn key_matches_record(identity: &str, fingerprint: &str, key_salt: &str, con
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sha256_hex;
     use serde_json::json;
 
     const SECRET: &str = "7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a7a03030303030303030303030303030303";
@@ -225,6 +258,31 @@ mod tests {
         assert_eq!(record_fingerprint(&json!(null)), Err(RecordFingerprintError::NotAnObject));
         assert_eq!(record_fingerprint(&json!({ "keyBinding": null })), Err(RecordFingerprintError::InvalidKeyBinding));
         assert!(matches!(record_fingerprint(&json!({ "a": null })), Err(RecordFingerprintError::Canonical(_))));
+    }
+
+    #[test]
+    fn a_field_set_comes_whole_and_its_commitment_is_the_content_hash() {
+        let root = "5e".repeat(32);
+        let schema = "6f".repeat(32);
+        let plain = json!({ "nonce": SECRET, "fieldSchema": schema, "fieldSetRoot": root });
+        let r = record_fingerprint(&plain).unwrap();
+        assert_eq!(r.algorithm, FIELDS_ALGORITHM);
+        assert_eq!(r.fingerprint, r.content_hash);
+        assert_ne!(r.content_hash, sha256_hex(&canonicalise(&plain).unwrap()));
+        let k = binding_for_secret(SECRET).unwrap();
+        let bound = json!({ "nonce": SECRET, "fieldSchema": schema, "fieldSetRoot": root, "keyBinding": k.key_binding });
+        let b = record_fingerprint(&bound).unwrap();
+        assert_eq!(b.algorithm, KEY_BOUND_ALGORITHM);
+        assert_eq!(b.fingerprint, key_bound_fingerprint(&k.key_binding, &b.content_hash).unwrap());
+        for bad in [
+            json!({ "fieldSchema": schema }),
+            json!({ "fieldSetRoot": root }),
+            json!({ "fieldSchema": schema, "fieldSetRoot": root.to_uppercase() }),
+            json!({ "fieldSchema": [schema], "fieldSetRoot": root }),
+            json!({ "fieldSchema": schema, "fieldSetRoot": null }),
+        ] {
+            assert_eq!(record_fingerprint(&bad), Err(RecordFingerprintError::InvalidFieldSet), "{bad}");
+        }
     }
 
     #[test]
