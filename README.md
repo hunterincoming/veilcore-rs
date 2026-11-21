@@ -4,8 +4,8 @@
 · Apache-2.0 · [the specification](https://github.com/hunterincoming/veilcore-sdk/blob/main/SPEC.md)
 
 A Rust implementation of the VeilCore record format: canonical serialisation, record
-fingerprints (including records that name their own key), inclusion proofs, field sets and
-the report pairing. It passes the same published conformance vectors as the TypeScript and
+fingerprints (including records that name their own key), inclusion proofs, field sets,
+the report pairing, document records and laboratory results version 2. It passes the same published conformance vectors as the TypeScript and
 Python implementations in [veilcore-sdk](https://github.com/hunterincoming/veilcore-sdk).
 
 All three have the same author, so this shows the vectors hold across languages. It does not
@@ -20,12 +20,13 @@ whoever needs to implement it.
 
     cargo test
 
-Sixty of them, and they cover what the format requires an implementation to REFUSE
+Eighty-four of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
 schema or slot value, comparable text not in its declared format, a commitment algorithm
 name that is not exactly one of the two, a field binding on the wrong algorithm, a
-`keyBinding` that is not 64 lowercase hex characters. An implementation
+`keyBinding` that is not 64 lowercase hex characters, a field set that is not whole, a
+document record or a laboratory result statement in any form but its own. An implementation
 that only agrees on valid input has not been shown to agree.
 
 ## Conformance
@@ -36,16 +37,47 @@ that only agrees on valid input has not been shown to agree.
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" \
       --without-animal-profile --without-strain-profile
 
-131 vectors pass: all 121 for the record format, including field sets (`sha256/fields/v1`,
-spec 4.5), the report pairing (spec 3.7) and records that name their own key (spec 3.6.1),
-plus the five animal records of spec 11.8 and the five strain and line records of spec 11.9
-(both drafts). This crate computes those records' fingerprints but doesn't check either
-profile's own form, so the two flags above leave out the profiles' 50 refusals, and the
-result says so. The runner speaks over stdin and stdout, so it drives any
+333 vectors pass: all 129 for the record format, including field sets (`sha256/fields/v1`,
+spec 4.5), the report pairing (spec 3.7) and records that name their own key, with and
+without a field set (spec 3.6.1); the 36 document-record vectors of spec 11.11, its 31
+refusals included; the 158 laboratory-result vectors of spec 11.12 (a draft); and the five
+animal records of spec 11.8 and the five strain and line records of spec 11.9. This crate
+computes the animal and strain records' fingerprints but doesn't check either profile's
+own form, so the two flags above leave out those profiles' 50 refusals, and the result
+says so. The runner speaks over stdin and stdout, so it drives any
 implementation in any language, and it fails rather than skips when one cannot answer an
 operation: a check that reports nothing is worse than a check that is missing.
 
 ## Changes
+
+**Unreleased**: brings the crate up to the current veilcore-sdk vectors (its commit
+62c23aa).
+
+- A record that names its own key may carry a field set (spec 3.6.1, "With a field set").
+  `record_fingerprint` now takes the spec 4.5 commitment,
+  `H("veilcore:v1:frecord", fieldSetRoot, SHA-256 of the canonical fields)`, as the content
+  hash of committed fields carrying `fieldSchema` and `fieldSetRoot`; with no `keyBinding`
+  that commitment is the fingerprint, algorithm `sha256/fields/v1`. Before, such fields were
+  hashed as plain JSON, and got a fingerprint the other implementations do not. Fields with
+  only one of the two, or either not 64 lowercase hex characters, are refused with the new
+  `RecordFingerprintError::InvalidFieldSet`; a caller matching `RecordFingerprintError`
+  exhaustively needs an arm for it.
+- Document records (spec 11.11, final): the `document` module. `document_problems` lists
+  what is wrong with a document record's committed fields, and `document_fingerprint`
+  refuses them or gives `record_fingerprint`'s answer. The conformance binary answers
+  `documentFingerprint`, and `tests/document.rs` runs every vector of
+  `tests/vectors/document-v1.json`.
+- Laboratory results, version 2 (spec 11.12, a draft): the `lab_result` module. A result
+  statement's form and its `lab-result.json` file entry (`lab_statement_file`), whether a
+  statement binds to a document record and its field set (`lab_binding_problems`), DNA mark
+  seals (`dna_mark_seal`), the laboratory's salted name binding (`lab_name_binding`), and
+  whether a viability result after a kill step pairs with the one before it
+  (`lab_viability_pair_problems`). Signatures are not checked here. The conformance binary
+  answers `labStatement`, `labBinding`, `dnaMarkSeal`, `labNameBinding` and
+  `labViabilityPair`, and `tests/lab_result.rs` runs every vector of
+  `tests/vectors/lab-result-v2.json`.
+- `tests/vectors/key-bound-v1.json` is the current copy (six records, eleven checks, nine
+  refusals).
 
 **0.4.0**: animal records (spec 11.8, a draft): `tests/animal.rs` runs the five
 records of `tests/vectors/animal-individual-v1.json`, a byte-for-byte copy of the file the
