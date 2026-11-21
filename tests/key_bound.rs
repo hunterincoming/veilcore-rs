@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Every vector of spec 3.6.1, a record that names its own key.
 //!
 //! `vectors/key-bound-v1.json` is a byte-for-byte copy of the file the VeilCore web

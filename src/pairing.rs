@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! A report paired on a ledger, per specification section 3.7.
 //!
 //! What a ledger pairing publishes for a report is not the report's hash but

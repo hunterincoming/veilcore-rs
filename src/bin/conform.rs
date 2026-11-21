@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Conformance runner.
 //!
 //! Reads a job on stdin, writes a result on stdout, so the published runner can test

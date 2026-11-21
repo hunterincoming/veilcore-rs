@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! A record that names its own key, without showing it, per specification section 3.6.1.
 //!
 //! The record's key (its ledger identity, `commit(recordSecret)`) is made before the record

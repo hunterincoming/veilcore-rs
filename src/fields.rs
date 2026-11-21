@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Field sets: commitment algorithm `sha256/fields/v1`, per specification section 4.5.
 //!
 //! A record sealed this way commits each of 16 slots as a salted leaf under one root, and

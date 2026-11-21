@@ -16,6 +16,15 @@ Dependencies: SHA-256, a JSON parser, Unicode normalisation. Nothing else. A for
 needs more than that to compute a commitment is a format that cannot be implemented by
 whoever needs to implement it.
 
+## Install
+
+Not on crates.io yet. Add it from this repository, pinned to a release tag:
+
+```toml
+[dependencies]
+veilcore-records = { git = "https://github.com/hunterincoming/veilcore-rs", tag = "v0.4.0" }
+```
+
 ## Tests
 
     cargo test
