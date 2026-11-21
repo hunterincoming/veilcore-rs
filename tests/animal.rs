@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! Animal records (spec 11.8, a draft): their fingerprints, computed exactly as any record's.
 //!
 //! `vectors/animal-individual-v1.json` is a byte-for-byte copy of the file the VeilCore web

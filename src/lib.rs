@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! A Rust implementation of the VeilCore record format.
 //!
 //! Written from the specification rather than translated from the TypeScript or Python
