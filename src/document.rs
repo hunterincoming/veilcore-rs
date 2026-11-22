@@ -35,9 +35,8 @@ const NOTES_MAX: usize = 20_000;
 const FILES_MAX: usize = 20;
 const ABOUT_MAX: usize = 20;
 
-/// A record id as the reference implementations accept it: a letter or digit, then up to
-/// 127 of letters, digits, `.`, `_`, `:` and `-`. Section 11.11 names `recordId` without
-/// giving its form; this keeps the three implementations refusing the same values.
+/// A record id (section 11.8, which section 11.11 points to): 1 to 128 characters, an ASCII
+/// letter or digit, then only ASCII letters, digits, `.`, `_`, `:` and `-`.
 fn is_record_id(v: &Value) -> bool {
     let Some(s) = v.as_str() else { return false };
     let b = s.as_bytes();

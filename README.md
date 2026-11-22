@@ -20,7 +20,7 @@ whoever needs to implement it.
 
     cargo test
 
-Eighty-four of them, and they cover what the format requires an implementation to REFUSE
+Eighty-seven of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
 schema or slot value, comparable text not in its declared format, a commitment algorithm
@@ -34,24 +34,40 @@ that only agrees on valid input has not been shown to agree.
     cargo build --release
 
     git clone https://github.com/hunterincoming/veilcore-sdk
+    git -C veilcore-sdk checkout 079adf5205d065ec4f4a1264a303e103dfb9e972
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" \
       --without-animal-profile --without-strain-profile
 
-333 vectors pass: all 129 for the record format, including field sets (`sha256/fields/v1`,
+CI runs the vectors of that one veilcore-sdk commit, named in `.github/workflows/ci.yml`, and
+checks that the copies in `tests/vectors/` are that commit's files.
+
+388 vectors pass: all 129 for the record format, including field sets (`sha256/fields/v1`,
 spec 4.5), the report pairing (spec 3.7) and records that name their own key, with and
 without a field set (spec 3.6.1); the 36 document-record vectors of spec 11.11, its 31
-refusals included; the 158 laboratory-result vectors of spec 11.12 (a draft); and the five
+refusals included; the 29 document cases of `profile-forms-v1.json` (record ids and white
+space, spec 11.8); the 184 laboratory-result vectors of spec 11.12 (a draft); and the five
 animal records of spec 11.8 and the five strain and line records of spec 11.9. This crate
 computes the animal and strain records' fingerprints but doesn't check either profile's
-own form, so the two flags above leave out those profiles' 50 refusals, and the result
-says so. The runner speaks over stdin and stdout, so it drives any
-implementation in any language, and it fails rather than skips when one cannot answer an
+own form, as spec 11.8 and 11.9 describe, so the two flags above leave out those profiles'
+50 refusals and their 12 cases in `profile-forms-v1.json`, and the result says so. The
+runner speaks over stdin and stdout, so it drives any implementation in any language, and it fails rather than skips when one cannot answer an
 operation: a check that reports nothing is worse than a check that is missing.
 
 ## Changes
 
-**Unreleased**: brings the crate up to the current veilcore-sdk vectors (its commit
-62c23aa).
+**Unreleased**: brings the crate up to veilcore-sdk commit 079adf5 (spec 11.8 to 11.12: counts
+read by value, record ids, white space), after its commit 62c23aa below.
+
+- CI runs one pinned veilcore-sdk commit rather than its latest `main`, and fails if a file in
+  `tests/vectors/` differs from that commit's copy.
+- `tests/vectors/lab-result-v2.json` is the current copy (184 vectors). Counts written `12.0`,
+  `1e1` or `-0` were already read by value here, as the specification now says; the tests read
+  the new `statementText` vectors as written.
+- `tests/profile_forms.rs` runs `tests/vectors/profile-forms-v1.json`: every document case, and
+  the fingerprints of the animal and strain cases that stand.
+- No change to what the crate accepts or refuses.
+
+Before that, up to veilcore-sdk commit 62c23aa:
 
 - A record that names its own key may carry a field set (spec 3.6.1, "With a field set").
   `record_fingerprint` now takes the spec 4.5 commitment,

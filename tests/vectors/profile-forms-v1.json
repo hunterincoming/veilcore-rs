@@ -1,0 +1,1493 @@
+{
+  "spec": "SPEC 11.8 (record ids and white space), as used by 11.9 and 11.11",
+  "profileForms": [
+    {
+      "name": "a record id of one letter",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "a"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"a\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate of analysis, batch 7\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "5678b10cea768925b871f429003a82e21f35731d77aba2fc6243f9cc2e0de486",
+      "fingerprint": "425fb3841b3daedf7aa5fab0751f18401833d6975c34183d0b4e34847b5de6e6"
+    },
+    {
+      "name": "a record id of one digit",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "7"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"7\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate of analysis, batch 7\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "52f515bf0f1f76a468bd38b59b11de1d17c933f78bd17f7e14b9bd9e1093d830",
+      "fingerprint": "797ca6b76f75307e7f3decfef0386204a8bc438b043a09b56ea8f3f3ccde726d"
+    },
+    {
+      "name": "a record id using every allowed mark (. _ : -)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "vc_rec.2026:07-a"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"vc_rec.2026:07-a\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate of analysis, batch 7\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "7c94494b32f930fd9da7bd5ee98d9da5e936551fc35b0e5b7da85d81ad3eefc7",
+      "fingerprint": "d761b26a6c79f4392c5cc04c6ae731e5e43120fd6a9e2c9b44a56bdbe15ca9fb"
+    },
+    {
+      "name": "a record id of 128 characters, the most",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "Va1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1z"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"Va1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1z\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate of analysis, batch 7\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "d8fbbbaf254bc537c14076e85917e2e8cf8aa380b1daa22a75c1b7109eb1f2f9",
+      "fingerprint": "84a82080e4c9376302836734e2b66b0145483b54b6ac29425aa30cf8e1198820"
+    },
+    {
+      "name": "a record id of 129 characters",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "Va1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1z0"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "an empty record id",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": ""
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id starting with -",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "-VEIL-0007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id starting with .",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": ".VEIL"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id starting with _",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "_VEIL"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id with a space inside",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL 0007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id with a slash",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL/0007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id ending in a line break",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-0007\n"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id with a letter outside ASCII (É)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VÉIL-0007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id with a full-width digit",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-７"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a record id written as a number",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": 7
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis, batch 7",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "an animal parent with a record id using every allowed mark",
+      "profile": "animal",
+      "fields": {
+        "breed": "Japanese Black",
+        "breeder": "Example Farm (test data)",
+        "dateOfBirth": "2024-03-15",
+        "herd": "Test herd 7",
+        "idScheme": "",
+        "individualId": "",
+        "loggedAt": 1760600000000,
+        "name": "Practice Bull",
+        "nonce": "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+        "notes": "Test data, not a real animal.",
+        "parents": [
+          {
+            "individualId": "",
+            "name": "Practice Cow One",
+            "recordId": "vc_rec.2026:07-a",
+            "role": "dam"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/animal-individual/v1",
+        "sex": "male",
+        "species": "Cattle (Bos taurus)",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"breed\":\"Japanese Black\",\"breeder\":\"Example Farm (test data)\",\"dateOfBirth\":\"2024-03-15\",\"herd\":\"Test herd 7\",\"idScheme\":\"\",\"individualId\":\"\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1760600000000,\"name\":\"Practice Bull\",\"nonce\":\"6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d\",\"notes\":\"Test data, not a real animal.\",\"parents\":[{\"individualId\":\"\",\"name\":\"Practice Cow One\",\"recordId\":\"vc_rec.2026:07-a\",\"role\":\"dam\"}],\"photoFingerprints\":[\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"],\"profile\":\"veilcore/profile/animal-individual/v1\",\"sex\":\"male\",\"species\":\"Cattle (Bos taurus)\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "8e14ab736fd49adfd76a7c905d9d10dd3a9c47b58706f0af0f302aae6985bac0",
+      "fingerprint": "d5f17849ef90f434d0ecec685482a2ee967f30ad0713163caeb35c67cf5cc016"
+    },
+    {
+      "name": "an animal parent with a record id starting with -",
+      "profile": "animal",
+      "fields": {
+        "breed": "Japanese Black",
+        "breeder": "Example Farm (test data)",
+        "dateOfBirth": "2024-03-15",
+        "herd": "Test herd 7",
+        "idScheme": "",
+        "individualId": "",
+        "loggedAt": 1760600000000,
+        "name": "Practice Bull",
+        "nonce": "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+        "notes": "Test data, not a real animal.",
+        "parents": [
+          {
+            "individualId": "",
+            "name": "Practice Cow One",
+            "recordId": "-VEIL-0017",
+            "role": "dam"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/animal-individual/v1",
+        "sex": "male",
+        "species": "Cattle (Bos taurus)",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "an animal parent with a record id of 129 characters",
+      "profile": "animal",
+      "fields": {
+        "breed": "Japanese Black",
+        "breeder": "Example Farm (test data)",
+        "dateOfBirth": "2024-03-15",
+        "herd": "Test herd 7",
+        "idScheme": "",
+        "individualId": "",
+        "loggedAt": 1760600000000,
+        "name": "Practice Bull",
+        "nonce": "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+        "notes": "Test data, not a real animal.",
+        "parents": [
+          {
+            "individualId": "",
+            "name": "Practice Cow One",
+            "recordId": "Va1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1z0",
+            "role": "dam"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/animal-individual/v1",
+        "sex": "male",
+        "species": "Cattle (Bos taurus)",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a parent strain with a record id using every allowed mark",
+      "profile": "strain",
+      "fields": {
+        "deposits": [
+          "RCB 99999 (test data)",
+          "CVCL_TEST (test data)"
+        ],
+        "designation": "QY-0012",
+        "generation": "P12",
+        "group": "cell-line",
+        "loggedAt": 1761100000000,
+        "madeOn": "2026-09-30",
+        "maker": "Example Lab (test data)",
+        "method": "subculture",
+        "name": "Practice Cell Line",
+        "nonce": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+        "notes": "Test data, not a real strain.",
+        "parents": [
+          {
+            "deposit": "",
+            "name": "Practice Parent Line",
+            "recordId": "vc_rec.2026:07-a"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/strain/v1",
+        "species": "Bos taurus",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"deposits\":[\"RCB 99999 (test data)\",\"CVCL_TEST (test data)\"],\"designation\":\"QY-0012\",\"generation\":\"P12\",\"group\":\"cell-line\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761100000000,\"madeOn\":\"2026-09-30\",\"maker\":\"Example Lab (test data)\",\"method\":\"subculture\",\"name\":\"Practice Cell Line\",\"nonce\":\"7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e\",\"notes\":\"Test data, not a real strain.\",\"parents\":[{\"deposit\":\"\",\"name\":\"Practice Parent Line\",\"recordId\":\"vc_rec.2026:07-a\"}],\"photoFingerprints\":[\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"],\"profile\":\"veilcore/profile/strain/v1\",\"species\":\"Bos taurus\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "9ebf88c5e0733039b2854dc2feeb69a963e8bdd4fc77f9c6c3b9c7459c636c9b",
+      "fingerprint": "3178fd956300f9d5e4c87e4ccd40c00255c681c4f914554ca29855c56d50d1d7"
+    },
+    {
+      "name": "a parent strain with a record id with a space inside",
+      "profile": "strain",
+      "fields": {
+        "deposits": [
+          "RCB 99999 (test data)",
+          "CVCL_TEST (test data)"
+        ],
+        "designation": "QY-0012",
+        "generation": "P12",
+        "group": "cell-line",
+        "loggedAt": 1761100000000,
+        "madeOn": "2026-09-30",
+        "maker": "Example Lab (test data)",
+        "method": "subculture",
+        "name": "Practice Cell Line",
+        "nonce": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+        "notes": "Test data, not a real strain.",
+        "parents": [
+          {
+            "deposit": "",
+            "name": "Practice Parent Line",
+            "recordId": "VEIL 0021"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/strain/v1",
+        "species": "Bos taurus",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a parent strain with a record id with a letter outside ASCII",
+      "profile": "strain",
+      "fields": {
+        "deposits": [
+          "RCB 99999 (test data)",
+          "CVCL_TEST (test data)"
+        ],
+        "designation": "QY-0012",
+        "generation": "P12",
+        "group": "cell-line",
+        "loggedAt": 1761100000000,
+        "madeOn": "2026-09-30",
+        "maker": "Example Lab (test data)",
+        "method": "subculture",
+        "name": "Practice Cell Line",
+        "nonce": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+        "notes": "Test data, not a real strain.",
+        "parents": [
+          {
+            "deposit": "",
+            "name": "Practice Parent Line",
+            "recordId": "VÉIL-0021"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/strain/v1",
+        "species": "Bos taurus",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in a no-break space (U+00A0)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis ",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title starting with an ideographic space (U+3000)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "　Certificate of analysis",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in a byte order mark (U+FEFF)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis﻿",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title starting with a byte order mark (U+FEFF)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "﻿Certificate of analysis",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in a line separator (U+2028)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis ",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in a paragraph separator (U+2029)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis ",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in an ogham space mark (U+1680)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis ",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in a hair space (U+200A)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis ",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in a narrow no-break space (U+202F)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis ",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title ending in a medium mathematical space (U+205F)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis ",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a title with a no-break space inside",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"VEIL-00000000000000000000000000000007\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate of analysis\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "c3a8669cb8f5423e91c8af89583d281a5e861079470dede7100049f742d2bd4d",
+      "fingerprint": "63f5b77c07833f5a333cd3fc7e04b551ccfcca28844e2bbba0aa179f3b0c1e79"
+    },
+    {
+      "name": "a title with a byte order mark inside (only the ends are checked)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate﻿of analysis",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"VEIL-00000000000000000000000000000007\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate﻿of analysis\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "e8710544dede13f03ce2301bc2001053238dacd147dde41f499050885b084471",
+      "fingerprint": "720f8ba510be34dd78a5d5c3531eb553240fd1911e1a2571ea68682d9e0f2f9c"
+    },
+    {
+      "name": "a title ending in a zero-width space (U+200B is not white space)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis​",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"VEIL-00000000000000000000000000000007\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate of analysis​\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "7561505c4911540d99513b0efbec2ffaa1b59f18a66538d4cfffea2a74a58797",
+      "fingerprint": "3d08d81eadc5172c56cf64443bc42d71eaea0a1439b2dc0dbbb536d4a40354ac"
+    },
+    {
+      "name": "a title ending in a Mongolian vowel separator (U+180E is not white space)",
+      "profile": "document",
+      "fields": {
+        "about": [
+          {
+            "name": "Practice Plant 7",
+            "recordId": "VEIL-00000000000000000000000000000007"
+          }
+        ],
+        "files": [
+          {
+            "name": "COA batch 7 (test data).pdf",
+            "sha256": "b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780",
+            "size": 184321
+          },
+          {
+            "name": "chromatogram.png",
+            "sha256": "542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81",
+            "size": 52011
+          }
+        ],
+        "holder": "Example Grower (test data)",
+        "issued": "2026-10-01",
+        "issuer": "Example Testing Lab (test data)",
+        "loggedAt": 1761700000000,
+        "nonce": "5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+        "notes": "Test data, not a real certificate.",
+        "profile": "veilcore/profile/document/v1",
+        "reference": "COA-0007",
+        "title": "Certificate of analysis᠎",
+        "type": "certificate-of-analysis",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"about\":[{\"name\":\"Practice Plant 7\",\"recordId\":\"VEIL-00000000000000000000000000000007\"}],\"files\":[{\"name\":\"COA batch 7 (test data).pdf\",\"sha256\":\"b82e614b63db38faa5d2b1a830e449b7242cb576aa7f2275de53bcbe4f6a0780\",\"size\":184321},{\"name\":\"chromatogram.png\",\"sha256\":\"542d85a8a823d55bc9f2a7be34ec8aa163227a1a16d5b9d6ac788abcb3470e81\",\"size\":52011}],\"holder\":\"Example Grower (test data)\",\"issued\":\"2026-10-01\",\"issuer\":\"Example Testing Lab (test data)\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761700000000,\"nonce\":\"5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d\",\"notes\":\"Test data, not a real certificate.\",\"profile\":\"veilcore/profile/document/v1\",\"reference\":\"COA-0007\",\"title\":\"Certificate of analysis᠎\",\"type\":\"certificate-of-analysis\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "bb660553d97ded81cb43f8ee864508a5a93183f482cc06c121ffee636dba4805",
+      "fingerprint": "8543cb31043f40988ca398fb1ac4028951fa3994c9889e43f51443f2cb337314"
+    },
+    {
+      "name": "an animal name ending in a byte order mark (U+FEFF)",
+      "profile": "animal",
+      "fields": {
+        "breed": "Japanese Black",
+        "breeder": "Example Farm (test data)",
+        "dateOfBirth": "2024-03-15",
+        "herd": "Test herd 7",
+        "idScheme": "",
+        "individualId": "",
+        "loggedAt": 1760600000000,
+        "name": "Practice Cow Two﻿",
+        "nonce": "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+        "notes": "Test data, not a real animal.",
+        "parents": [
+          {
+            "individualId": "",
+            "name": "Practice Cow One",
+            "recordId": "VEIL-00000000000000000000000000000017",
+            "role": "dam"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/animal-individual/v1",
+        "sex": "male",
+        "species": "Cattle (Bos taurus)",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "an animal name starting with an ideographic space (U+3000)",
+      "profile": "animal",
+      "fields": {
+        "breed": "Japanese Black",
+        "breeder": "Example Farm (test data)",
+        "dateOfBirth": "2024-03-15",
+        "herd": "Test herd 7",
+        "idScheme": "",
+        "individualId": "",
+        "loggedAt": 1760600000000,
+        "name": "　Practice Cow Two",
+        "nonce": "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+        "notes": "Test data, not a real animal.",
+        "parents": [
+          {
+            "individualId": "",
+            "name": "Practice Cow One",
+            "recordId": "VEIL-00000000000000000000000000000017",
+            "role": "dam"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/animal-individual/v1",
+        "sex": "male",
+        "species": "Cattle (Bos taurus)",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "an animal name ending in a zero-width space (not white space)",
+      "profile": "animal",
+      "fields": {
+        "breed": "Japanese Black",
+        "breeder": "Example Farm (test data)",
+        "dateOfBirth": "2024-03-15",
+        "herd": "Test herd 7",
+        "idScheme": "",
+        "individualId": "",
+        "loggedAt": 1760600000000,
+        "name": "Practice Cow Two​",
+        "nonce": "6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d",
+        "notes": "Test data, not a real animal.",
+        "parents": [
+          {
+            "individualId": "",
+            "name": "Practice Cow One",
+            "recordId": "VEIL-00000000000000000000000000000017",
+            "role": "dam"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/animal-individual/v1",
+        "sex": "male",
+        "species": "Cattle (Bos taurus)",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"breed\":\"Japanese Black\",\"breeder\":\"Example Farm (test data)\",\"dateOfBirth\":\"2024-03-15\",\"herd\":\"Test herd 7\",\"idScheme\":\"\",\"individualId\":\"\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1760600000000,\"name\":\"Practice Cow Two​\",\"nonce\":\"6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d6d\",\"notes\":\"Test data, not a real animal.\",\"parents\":[{\"individualId\":\"\",\"name\":\"Practice Cow One\",\"recordId\":\"VEIL-00000000000000000000000000000017\",\"role\":\"dam\"}],\"photoFingerprints\":[\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"],\"profile\":\"veilcore/profile/animal-individual/v1\",\"sex\":\"male\",\"species\":\"Cattle (Bos taurus)\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "bd3030df80584ebee1da7f6fb6e7734233c6cff4599eccd844d0426c29aaf431",
+      "fingerprint": "b7804ece10d9608cc5047210d80537cc9ee628826cde14de6253144f4d528ab0"
+    },
+    {
+      "name": "a strain name ending in a byte order mark (U+FEFF)",
+      "profile": "strain",
+      "fields": {
+        "deposits": [
+          "RCB 99999 (test data)",
+          "CVCL_TEST (test data)"
+        ],
+        "designation": "QY-0012",
+        "generation": "P12",
+        "group": "cell-line",
+        "loggedAt": 1761100000000,
+        "madeOn": "2026-09-30",
+        "maker": "Example Lab (test data)",
+        "method": "subculture",
+        "name": "Practice Line﻿",
+        "nonce": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+        "notes": "Test data, not a real strain.",
+        "parents": [
+          {
+            "deposit": "",
+            "name": "Practice Parent Line",
+            "recordId": "VEIL-00000000000000000000000000000021"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/strain/v1",
+        "species": "Bos taurus",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a strain name ending in a no-break space (U+00A0)",
+      "profile": "strain",
+      "fields": {
+        "deposits": [
+          "RCB 99999 (test data)",
+          "CVCL_TEST (test data)"
+        ],
+        "designation": "QY-0012",
+        "generation": "P12",
+        "group": "cell-line",
+        "loggedAt": 1761100000000,
+        "madeOn": "2026-09-30",
+        "maker": "Example Lab (test data)",
+        "method": "subculture",
+        "name": "Practice Line ",
+        "nonce": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+        "notes": "Test data, not a real strain.",
+        "parents": [
+          {
+            "deposit": "",
+            "name": "Practice Parent Line",
+            "recordId": "VEIL-00000000000000000000000000000021"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/strain/v1",
+        "species": "Bos taurus",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": true
+    },
+    {
+      "name": "a strain name with a no-break space inside",
+      "profile": "strain",
+      "fields": {
+        "deposits": [
+          "RCB 99999 (test data)",
+          "CVCL_TEST (test data)"
+        ],
+        "designation": "QY-0012",
+        "generation": "P12",
+        "group": "cell-line",
+        "loggedAt": 1761100000000,
+        "madeOn": "2026-09-30",
+        "maker": "Example Lab (test data)",
+        "method": "subculture",
+        "name": "Practice Line",
+        "nonce": "7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e",
+        "notes": "Test data, not a real strain.",
+        "parents": [
+          {
+            "deposit": "",
+            "name": "Practice Parent Line",
+            "recordId": "VEIL-00000000000000000000000000000021"
+          }
+        ],
+        "photoFingerprints": [
+          "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+        ],
+        "profile": "veilcore/profile/strain/v1",
+        "species": "Bos taurus",
+        "keyBinding": "0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef"
+      },
+      "refused": false,
+      "canonical": "{\"deposits\":[\"RCB 99999 (test data)\",\"CVCL_TEST (test data)\"],\"designation\":\"QY-0012\",\"generation\":\"P12\",\"group\":\"cell-line\",\"keyBinding\":\"0c900780108dc20575338110047daebdcdc6132e925c936413c021e9b84db8ef\",\"loggedAt\":1761100000000,\"madeOn\":\"2026-09-30\",\"maker\":\"Example Lab (test data)\",\"method\":\"subculture\",\"name\":\"Practice Line\",\"nonce\":\"7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e\",\"notes\":\"Test data, not a real strain.\",\"parents\":[{\"deposit\":\"\",\"name\":\"Practice Parent Line\",\"recordId\":\"VEIL-00000000000000000000000000000021\"}],\"photoFingerprints\":[\"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\"],\"profile\":\"veilcore/profile/strain/v1\",\"species\":\"Bos taurus\"}",
+      "algorithm": "sha256/key-bound/v1",
+      "contentHash": "a51933ae5c675a4ce5988b104d5bfd357b2e9893c152ecd7ff7a766f5a4fc6ad",
+      "fingerprint": "c516e8333797af33f63be9a2f293571cf84702e8dd673f2cd92af53b7e4776d3"
+    }
+  ]
+}

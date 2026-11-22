@@ -10,9 +10,9 @@ use crate::fields::parse_hex32;
 /// The largest integer a JSON number carries exactly (section 4.4).
 pub(crate) const MAX_SAFE: u64 = (1u64 << 53) - 1;
 
-/// White space at either end of one-line text. The profiles' implementations in
-/// TypeScript and Python strip what ECMAScript's `String.prototype.trim()` strips, so this
-/// is that set: the Unicode space separators, tab, the line terminators, VT, FF and U+FEFF.
+/// White space at either end of one-line text, as section 11.8 defines it: exactly what
+/// ECMAScript's `String.prototype.trim()` removes, which is U+0009 to U+000D, U+0020, U+00A0,
+/// U+1680, U+2000 to U+200A, U+2028, U+2029, U+202F, U+205F, U+3000 and U+FEFF.
 pub(crate) fn is_end_space(c: char) -> bool {
     matches!(
         c,
@@ -104,8 +104,9 @@ pub(crate) fn is_date(v: &Value) -> bool {
     (1..=days).contains(&d)
 }
 
-/// A JSON number with a whole value from 0 to `max`. `95.0` is the number 95 (section
-/// 4.4 serialises it as `95`), so it counts; `95.5`, `-1` and `"95"` do not.
+/// A JSON number with a whole value from 0 to `max`, read by value as section 11.12 says
+/// counts are: `95.0` and `9.5e1` are the number 95 (section 4.4 serialises them as `95`),
+/// `-0` is 0; `95.5`, `-1` and `"95"` are not whole numbers here.
 pub(crate) fn whole_number(v: &Value, max: u64) -> Option<u64> {
     if let Some(n) = v.as_u64() {
         return (n <= max).then_some(n);
