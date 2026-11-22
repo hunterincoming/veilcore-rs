@@ -23,6 +23,15 @@ fn list<'a>(v: &'a Value, k: &str) -> &'a Vec<Value> {
     v[k].as_array().unwrap_or_else(|| panic!("{k} is a list"))
 }
 
+/// A vector's statement. One with `statementText` is the statement as written (`12.0`, `1e1`,
+/// `1e400`), parsed here as any JSON reader would; text a reader cannot parse is refused.
+fn statement(v: &Value) -> Result<Value, String> {
+    match v.get("statementText") {
+        Some(t) => serde_json::from_str(t.as_str().expect("statementText is a string")).map_err(|e| e.to_string()),
+        None => Ok(v["statement"].clone()),
+    }
+}
+
 #[test]
 fn the_vector_file_is_whole() {
     let v = vectors();
@@ -37,14 +46,15 @@ fn the_vector_file_is_whole() {
         "labViabilityPairs",
     ];
     let counts: Vec<usize> = sections.iter().map(|k| list(&v, k).len()).collect();
-    assert_eq!(counts, [20, 70, 33, 3, 5, 4, 3, 20]);
-    assert_eq!(counts.iter().sum::<usize>(), 158);
+    assert_eq!(counts, [28, 82, 39, 3, 5, 4, 3, 20]);
+    assert_eq!(counts.iter().sum::<usize>(), 184);
 }
 
 #[test]
 fn every_statement_and_its_file_entry() {
     for v in list(&vectors(), "labStatements") {
-        let f = lab_statement_file(&v["statement"]).unwrap_or_else(|e| panic!("{}: {e}", s(v, "name")));
+        let st = statement(v).unwrap_or_else(|e| panic!("{}: {e}", s(v, "name")));
+        let f = lab_statement_file(&st).unwrap_or_else(|e| panic!("{}: {e}", s(v, "name")));
         assert_eq!((f.name, f.sha256.as_str(), f.size), (LAB_RESULT_FILE_NAME, s(v, "sha256"), v["size"].as_u64().unwrap()));
     }
 }
@@ -52,7 +62,7 @@ fn every_statement_and_its_file_entry() {
 #[test]
 fn every_statement_refusal_is_refused() {
     for v in list(&vectors(), "labStatementRefusals") {
-        assert!(lab_statement_file(&v["statement"]).is_err(), "{}", s(v, "name"));
+        assert!(statement(v).map_or(true, |st| lab_statement_file(&st).is_err()), "{}", s(v, "name"));
     }
 }
 
@@ -60,7 +70,8 @@ fn every_statement_refusal_is_refused() {
 fn every_binding_binds_or_is_refused() {
     let all = vectors();
     for v in list(&all, "labBindings") {
-        let problems = lab_binding_problems(&v["fields"], &v["statement"], &v["values"], &all["schemas"]);
+        let st = statement(v).unwrap_or_else(|e| panic!("{}: {e}", s(v, "name")));
+        let problems = lab_binding_problems(&v["fields"], &st, &v["values"], &all["schemas"]);
         assert_eq!(problems.is_empty(), v["bound"].as_bool().unwrap(), "{}: {problems:?}", s(v, "name"));
     }
 }
