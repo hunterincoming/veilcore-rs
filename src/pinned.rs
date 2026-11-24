@@ -44,6 +44,7 @@ pub enum ContractRefusal {
     NoPinnedContract,
     SeveralPinnedContracts,
     NamedContractNotCalled,
+    NoContractNamed,
 }
 
 impl ContractRefusal {
@@ -57,6 +58,7 @@ impl ContractRefusal {
             Self::NoPinnedContract => "no-pinned-contract",
             Self::SeveralPinnedContracts => "several-pinned-contracts",
             Self::NamedContractNotCalled => "named-contract-not-called",
+            Self::NoContractNamed => "no-contract-named",
         }
     }
 }
@@ -223,7 +225,8 @@ pub struct DatedRecord {
 /// A sighting that gives no date, and why.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RefusedSighting {
-    pub address: String,
+    /// The address the sighting gave, or `None` when it gave none (`no-contract-named`).
+    pub address: Option<String>,
     pub commitment: String,
     pub refused: ContractRefusal,
 }
@@ -232,7 +235,9 @@ pub struct RefusedSighting {
 /// (`{ address, commitment, date }`) on a pinned contract is its own record with its own date
 /// and the name of the contract that gave it. The same commitment on two contracts stays two
 /// records: nothing is merged, and no record takes another's date. A sighting on a contract
-/// that is not pinned gives no date.
+/// that is not pinned gives no date, and neither does one that names no contract (spec 9.4 (5)):
+/// it is refused as `no-contract-named`, never given a default contract's date, even when the
+/// network pins only one. A missing and a null address are alike.
 pub fn dated_records(
     list: &[PinnedContract],
     network: &str,
@@ -243,7 +248,14 @@ pub fn dated_records(
     let mut refused = Vec::new();
     for s in sightings {
         let text = |k: &str| s.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
-        match pinned_contracts(list, network, s.get("address"), version) {
+        let address = s.get("address").filter(|a| !a.is_null());
+        if address.is_none() {
+            // Off mainnet a defaulted version is still the reason given first.
+            let r = named_version(network, version).err().unwrap_or(ContractRefusal::NoContractNamed);
+            refused.push(RefusedSighting { address: None, commitment: text("commitment"), refused: r });
+            continue;
+        }
+        match pinned_contracts(list, network, address, version) {
             Ok(c) => records.push(DatedRecord {
                 commitment: text("commitment"),
                 date: text("date"),
@@ -252,7 +264,7 @@ pub fn dated_records(
                 version: c[0].version,
             }),
             Err(r) => refused.push(RefusedSighting {
-                address: text("address"),
+                address: Some(text("address")),
                 commitment: text("commitment"),
                 refused: r,
             }),

@@ -35,7 +35,7 @@ pinned contracts. An implementation that only agrees on valid input has not been
     cargo build --release
 
     git clone https://github.com/hunterincoming/veilcore-sdk
-    git -C veilcore-sdk checkout b1a6e0418371c964bd900fce9aaaa746914792a2
+    git -C veilcore-sdk checkout 5bc41f0d20d0ad6d77c65f2e334a4973f8e10889
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" \
       --without-animal-profile --without-strain-profile
 
@@ -62,7 +62,8 @@ from a pinned list the caller passes (VeilCore's is `deployments/mainnet.json` a
 contract, only if it is on the list; with no address, every pinned contract, never a default
 one; off mainnet, only with a named version), `contract_for_transaction` (the one pinned contract
 a transaction calls: none, or two of them, is refused) and `dated_records` (the same commitment
-on two contracts is two dates, each with its contract's name). A contract is identified by its
+on two contracts is two dates, each with its contract's name; a sighting that names no contract
+gives none). A contract is identified by its
 pinned address alone, never by what its own state says. This crate reads no ledger itself, so it
 holds no list and decodes no contract state: a caller that does uses these to choose the
 contract, and its own decoder for that contract's version. `tests/pinned_contracts.rs` runs all
@@ -72,7 +73,10 @@ JavaScript implementation, not over stdin and stdout).
 ## Changes
 
 **Unreleased**: spec 9.4, several contracts (`veilcore_records::pinned`), at veilcore-sdk commit
-b1a6e04, which adds `pinned-contracts-v1.json` and changes no other vector. Before that, up to
+5bc41f0, whose `pinned-contracts-v1.json` adds five date sets to the one b1a6e04 added and
+changes no other vector. A sighting that names no contract gives no date: `dated_records`
+refuses it as `no-contract-named` (rule 5, no default contract) instead of giving it the first
+pinned contract's date, and `RefusedSighting::address` is now `None` for it. Before that, up to
 veilcore-sdk commit 079adf5 (spec 11.8 to 11.12: counts read by value, record ids, white space),
 after its commit 62c23aa below.
 

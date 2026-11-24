@@ -850,6 +850,162 @@
           }
         ]
       }
+    },
+    {
+      "name": "a sighting that names no contract, with v1 and v2 pinned: no date, never the first pinned contract's",
+      "list": "twoContracts",
+      "query": {
+        "network": "mainnet",
+        "sightings": [
+          {
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-09-15T00:00:00Z"
+          },
+          {
+            "address": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-12-02T09:41:57Z"
+          }
+        ]
+      },
+      "result": {
+        "records": [
+          {
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-12-02T09:41:57Z",
+            "contract": "VeilCore main contract v2",
+            "address": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+            "version": 2
+          }
+        ],
+        "refused": [
+          {
+            "address": null,
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "refused": "no-contract-named"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a sighting whose contract is null, among sightings on v1 and v2: only the named ones are dated",
+      "list": "twoContracts",
+      "query": {
+        "network": "mainnet",
+        "sightings": [
+          {
+            "address": "1111111111111111111111111111111111111111111111111111111111111111",
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-10-20T14:03:11Z"
+          },
+          {
+            "address": null,
+            "commitment": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "date": "2026-09-15T00:00:00Z"
+          },
+          {
+            "address": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+            "commitment": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "date": "2026-12-03T10:00:00Z"
+          }
+        ]
+      },
+      "result": {
+        "records": [
+          {
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-10-20T14:03:11Z",
+            "contract": "VeilCore main contract v1",
+            "address": "1111111111111111111111111111111111111111111111111111111111111111",
+            "version": 1
+          },
+          {
+            "commitment": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "date": "2026-12-03T10:00:00Z",
+            "contract": "VeilCore main contract v2",
+            "address": "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+            "version": 2
+          }
+        ],
+        "refused": [
+          {
+            "address": null,
+            "commitment": "d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0",
+            "refused": "no-contract-named"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a sighting that names no contract, with one main contract pinned on preprod and its version named: still no date",
+      "list": "v1Only",
+      "query": {
+        "network": "preprod",
+        "version": 1,
+        "sightings": [
+          {
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-11-25T08:00:00Z"
+          }
+        ]
+      },
+      "result": {
+        "records": [],
+        "refused": [
+          {
+            "address": null,
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "refused": "no-contract-named"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a sighting that names no contract, with version 2 named on mainnet: no date",
+      "list": "twoContracts",
+      "query": {
+        "network": "mainnet",
+        "version": 2,
+        "sightings": [
+          {
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-12-02T09:41:57Z"
+          }
+        ]
+      },
+      "result": {
+        "records": [],
+        "refused": [
+          {
+            "address": null,
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "refused": "no-contract-named"
+          }
+        ]
+      }
+    },
+    {
+      "name": "a sighting that names no contract on preprod with no version named: the defaulted version fails first",
+      "list": "twoContracts",
+      "query": {
+        "network": "preprod",
+        "sightings": [
+          {
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "date": "2026-11-27T08:00:00Z"
+          }
+        ]
+      },
+      "result": {
+        "records": [],
+        "refused": [
+          {
+            "address": null,
+            "commitment": "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0",
+            "refused": "version-not-named"
+          }
+        ]
+      }
     }
   ]
 }

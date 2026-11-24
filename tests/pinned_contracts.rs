@@ -107,3 +107,36 @@ fn a_list_it_cannot_read_whole_is_refused() {
     assert!(pinned_list(&json!([good.clone(), good])).is_err(), "listed twice");
     assert!(pinned_list(&json!({})).is_err());
 }
+
+#[test]
+fn a_sighting_that_names_no_contract_gives_no_date() {
+    let v = vectors();
+    let l = lists(&v);
+    let c = "c0".repeat(32);
+    let v2 = "b2".repeat(32);
+    let unnamed = json!({ "commitment": c, "date": "2026-09-15T00:00:00Z" });
+    let with_null = json!({ "address": null, "commitment": c, "date": "2026-09-15T00:00:00Z" });
+    let on_v2 = json!({ "address": v2, "commitment": c, "date": "2026-12-02T00:00:00Z" });
+    // Two contracts pinned: the first on the list must not lend its date.
+    for s in [&unnamed, &with_null] {
+        let (records, refused) = dated_records(&l["twoContracts"], "mainnet", &[s.clone(), on_v2.clone()], None);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].address, v2);
+        assert_eq!(records[0].date, "2026-12-02T00:00:00Z");
+        assert_eq!(refused.len(), 1);
+        assert_eq!(refused[0].address, None);
+        assert_eq!(refused[0].refused.as_str(), "no-contract-named");
+    }
+    // One contract pinned for the network and version: still no default.
+    let (records, refused) = dated_records(&l["v1Only"], "preprod", &[unnamed.clone()], Some(&json!(1)));
+    assert!(records.is_empty());
+    assert_eq!(refused[0].refused.as_str(), "no-contract-named");
+    // Off mainnet with no version named, the defaulted version is the reason given.
+    let (_, refused) = dated_records(&l["twoContracts"], "preprod", &[unnamed.clone()], None);
+    assert_eq!(refused[0].refused.as_str(), "version-not-named");
+    // An empty address is malformed, not missing.
+    let (_, refused) = dated_records(&l["twoContracts"], "mainnet", &[json!({ "address": "", "commitment": c, "date": "x" })], None);
+    assert_eq!(refused[0].refused.as_str(), "malformed-address");
+    // A check with no address still tries every pinned contract.
+    assert_eq!(pinned_contracts(&l["twoContracts"], "mainnet", None, None).unwrap().len(), 3);
+}
