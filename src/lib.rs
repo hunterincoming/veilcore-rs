@@ -20,6 +20,7 @@ mod form;
 pub mod key_binding;
 pub mod lab_result;
 pub mod pairing;
+pub mod pinned;
 pub use document::{document_fingerprint, document_problems, DocumentError, DOCUMENT_PROFILE};
 pub use lab_result::{
     dna_mark_seal, lab_binding_problems, lab_call_values, lab_name_binding, lab_statement_file, lab_statement_problems,

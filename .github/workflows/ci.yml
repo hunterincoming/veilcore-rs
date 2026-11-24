@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: hunterincoming/veilcore-sdk
-          ref: 079adf5205d065ec4f4a1264a303e103dfb9e972
+          ref: 5bc41f0d20d0ad6d77c65f2e334a4973f8e10889
           path: veilcore-sdk
           persist-credentials: false
       - name: The vector copies in tests/vectors are the pinned commit's

@@ -20,21 +20,22 @@ whoever needs to implement it.
 
     cargo test
 
-Eighty-seven of them, and they cover what the format requires an implementation to REFUSE
+Ninety-one of them, and they cover what the format requires an implementation to REFUSE
 as much as what it must accept: a null at any depth, a key collision after Unicode
 normalisation, a non-finite number, a proof path over the depth cap, a malformed field
 schema or slot value, comparable text not in its declared format, a commitment algorithm
 name that is not exactly one of the two, a field binding on the wrong algorithm, a
 `keyBinding` that is not 64 lowercase hex characters, a field set that is not whole, a
-document record or a laboratory result statement in any form but its own. An implementation
-that only agrees on valid input has not been shown to agree.
+document record or a laboratory result statement in any form but its own, a contract address
+not in lowercase hex, a contract that is not on the pinned list, or a transaction that calls two
+pinned contracts. An implementation that only agrees on valid input has not been shown to agree.
 
 ## Conformance
 
     cargo build --release
 
     git clone https://github.com/hunterincoming/veilcore-sdk
-    git -C veilcore-sdk checkout 079adf5205d065ec4f4a1264a303e103dfb9e972
+    git -C veilcore-sdk checkout 5bc41f0d20d0ad6d77c65f2e334a4973f8e10889
     node veilcore-sdk/conformance/run-cli.mjs "$PWD/target/release/conform" \
       --without-animal-profile --without-strain-profile
 
@@ -53,10 +54,34 @@ own form, as spec 11.8 and 11.9 describe, so the two flags above leave out those
 runner speaks over stdin and stdout, so it drives any implementation in any language, and it fails rather than skips when one cannot answer an
 operation: a check that reports nothing is worse than a check that is missing.
 
+## Several contracts (spec 9.4)
+
+`veilcore_records::pinned` says which of VeilCore's contracts a check of a ledger anchor reads,
+from a pinned list the caller passes (VeilCore's is `deployments/mainnet.json` and
+`deployments/preprod.json` in github.com/hunterincoming/veilcore): `pinned_contracts` (a record's
+contract, only if it is on the list; with no address, every pinned contract, never a default
+one; off mainnet, only with a named version), `contract_for_transaction` (the one pinned contract
+a transaction calls: none, or two of them, is refused) and `dated_records` (the same commitment
+on two contracts is two dates, each with its contract's name; a sighting that names no contract
+gives none). A contract is identified by its
+pinned address alone, never by what its own state says. This crate reads no ledger itself, so it
+holds no list and decodes no contract state: a caller that does uses these to choose the
+contract, and its own decoder for that contract's version. `tests/pinned_contracts.rs` runs all
+of veilcore-sdk's `pinned-contracts-v1.json` (its conformance runner drives those only for the
+JavaScript implementation, not over stdin and stdout).
+
 ## Changes
 
-**Unreleased**: brings the crate up to veilcore-sdk commit 079adf5 (spec 11.8 to 11.12: counts
-read by value, record ids, white space), after its commit 62c23aa below.
+**Unreleased**: spec 9.4, several contracts (`veilcore_records::pinned`), at veilcore-sdk commit
+5bc41f0, whose `pinned-contracts-v1.json` adds five date sets to the one b1a6e04 added and
+changes no other vector. A sighting that names no contract gives no date: `dated_records`
+refuses it as `no-contract-named` (rule 5, no default contract) instead of giving it the first
+pinned contract's date, and `RefusedSighting::address` is now `None` for it. Before that, up to
+veilcore-sdk commit 079adf5 (spec 11.8 to 11.12: counts read by value, record ids, white space),
+after its commit 62c23aa below.
+
+- `tests/pinned_contracts.rs` runs every vector of `tests/vectors/pinned-contracts-v1.json`, and
+  checks a pinned list it can't read whole is refused.
 
 - CI runs one pinned veilcore-sdk commit rather than its latest `main`, and fails if a file in
   `tests/vectors/` differs from that commit's copy.
